@@ -2,7 +2,6 @@ package deep.decaf
 
 import deep.decaf.lexer.*
 import org.antlr.v4.runtime.*
-import org.antlr.v4.runtime.misc.*
 import java.io.*
 
 fun main(args: Array<String>) {
