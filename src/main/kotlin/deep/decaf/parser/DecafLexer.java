@@ -1,5 +1,5 @@
 // Generated from /home/deep/work/kotlin/DecafKotlin/src/grammar/DecafLexer.g4 by ANTLR 4.8
-package deep.decaf.lexer;
+package deep.decaf.parser;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;

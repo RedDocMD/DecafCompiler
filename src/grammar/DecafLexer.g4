@@ -9,12 +9,10 @@ TK_CALLOUT : 'callout';
 TK_CLASS : 'class';
 TK_CONTINUE : 'continue';
 TK_ELSE : 'else';
-TK_FALSE : 'false';
 TK_FOR : 'for';
 TK_IF : 'if';
 TK_INT : 'int';
 TK_RETURN : 'return';
-TK_TRUE : 'true';
 TK_VOID : 'void';
 
 LCURLY : '{';
@@ -24,6 +22,7 @@ RPAREN : ')';
 LSQUARE : '[';
 RSQUARE : ']';
 
+BOOL : 'true' | 'false';
 CHAR : '\'' (ESCAPED_CHAR | NORM_CHAR) '\'';
 STRING : '"' (ESCAPED_CHAR | NORM_CHAR)* '"';
 ID : ALPHA (ALPHA | DIGIT)*;
@@ -33,9 +32,8 @@ COMMA : ',';
 SEMICOLON : ';';
 DOT : '.';
 
-OP : ARITH_OP | REL_OP | EQ_OP | COND_OP | ASSIGN_OP;
-
-fragment ASSIGN_OP : '=' | '+=' | '-=';
+BIN_OP : ARITH_OP | REL_OP | EQ_OP | COND_OP;
+ASSIGN_OP : '=' | '+=' | '-=';
 fragment ARITH_OP : [+\-*/%];
 fragment REL_OP : '<' | '>' | '<=' | '>=';
 fragment EQ_OP : '==' | '!=';
