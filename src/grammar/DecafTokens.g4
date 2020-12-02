@@ -1,4 +1,4 @@
-lexer grammar DecafLexer;
+lexer grammar DecafTokens;
 
 COMMENT : '//' ~[\n]* -> skip;
 WS : [ \t\n]+ -> skip;
