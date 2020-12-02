@@ -65,11 +65,61 @@ public interface DecafVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitVar_decl(DecafParser.Var_declContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link DecafParser#statement}.
+	 * Visit a parse tree produced by the {@code AssignStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitStatement(DecafParser.StatementContext ctx);
+	T visitAssignStmt(DecafParser.AssignStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code MethodCallStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMethodCallStmt(DecafParser.MethodCallStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code IfStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitIfStmt(DecafParser.IfStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code ForStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitForStmt(DecafParser.ForStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code ReturnStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitReturnStmt(DecafParser.ReturnStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code BreakStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBreakStmt(DecafParser.BreakStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code ContinueStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitContinueStmt(DecafParser.ContinueStmtContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code BlockStmt}
+	 * labeled alternative in {@link DecafParser#statement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBlockStmt(DecafParser.BlockStmtContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link DecafParser#assign_op}.
 	 * @param ctx the parse tree
@@ -77,11 +127,19 @@ public interface DecafVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitAssign_op(DecafParser.Assign_opContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link DecafParser#method_call}.
+	 * Visit a parse tree produced by the {@code SimpleMethodCall}
+	 * labeled alternative in {@link DecafParser#method_call}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitMethod_call(DecafParser.Method_callContext ctx);
+	T visitSimpleMethodCall(DecafParser.SimpleMethodCallContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code CalloutMethodCall}
+	 * labeled alternative in {@link DecafParser#method_call}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitCalloutMethodCall(DecafParser.CalloutMethodCallContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link DecafParser#method_name}.
 	 * @param ctx the parse tree
@@ -89,17 +147,96 @@ public interface DecafVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitMethod_name(DecafParser.Method_nameContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link DecafParser#location}.
+	 * Visit a parse tree produced by the {@code IdLocation}
+	 * labeled alternative in {@link DecafParser#location}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitLocation(DecafParser.LocationContext ctx);
+	T visitIdLocation(DecafParser.IdLocationContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link DecafParser#expr}.
+	 * Visit a parse tree produced by the {@code ArrayLocation}
+	 * labeled alternative in {@link DecafParser#location}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitExpr(DecafParser.ExprContext ctx);
+	T visitArrayLocation(DecafParser.ArrayLocationContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code LocationExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitLocationExpr(DecafParser.LocationExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code MultGrpExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMultGrpExpr(DecafParser.MultGrpExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code CmpExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitCmpExpr(DecafParser.CmpExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code LiteralExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitLiteralExpr(DecafParser.LiteralExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code NegExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNegExpr(DecafParser.NegExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code BoolOpExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBoolOpExpr(DecafParser.BoolOpExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code EqOpExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitEqOpExpr(DecafParser.EqOpExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code NotExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNotExpr(DecafParser.NotExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code ParenExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitParenExpr(DecafParser.ParenExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code AddGrpExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAddGrpExpr(DecafParser.AddGrpExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code MethodCallExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMethodCallExpr(DecafParser.MethodCallExprContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link DecafParser#callout_list}.
 	 * @param ctx the parse tree

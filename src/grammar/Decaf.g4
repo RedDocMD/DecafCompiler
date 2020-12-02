@@ -10,31 +10,41 @@ arglist : arg (COMMA arg)*;
 arg : type ID;
 block : LCURLY var_decl* statement* RCURLY;
 var_decl : type ID (COMMA ID)* SEMICOLON;
-statement : location assign_op expr SEMICOLON
-            | method_call SEMICOLON
-            | TK_IF LPAREN expr RPAREN block (TK_ELSE block)?
-            | TK_FOR ID '=' expr COMMA expr block
-            | TK_RETURN expr? SEMICOLON
-            | TK_BREAK  SEMICOLON
-            | TK_CONTINUE SEMICOLON
-            | block;
+
+statement : location assign_op expr SEMICOLON  #AssignStmt
+            | method_call SEMICOLON  #MethodCallStmt
+            | TK_IF LPAREN expr RPAREN block (TK_ELSE block)?  #IfStmt
+            | TK_FOR ID '=' expr COMMA expr block  #ForStmt
+            | TK_RETURN expr? SEMICOLON  #ReturnStmt
+            | TK_BREAK  SEMICOLON  #BreakStmt
+            | TK_CONTINUE SEMICOLON  #ContinueStmt
+            | block  #BlockStmt
+            ;
+
 assign_op : '=' | '+=' | '-=';
-method_call : method_name LPAREN expr_list? RPAREN
-              | TK_CALLOUT LPAREN STRING (COMMA callout_list)? RPAREN;
+
+method_call : method_name LPAREN expr_list? RPAREN  #SimpleMethodCall
+              | TK_CALLOUT LPAREN STRING (COMMA callout_list)? RPAREN  #CalloutMethodCall
+              ;
 method_name : ID;
-location : ID
-          | ID LSQUARE expr RSQUARE;
-expr : location
-      | method_call
-      | literal
-      | expr ('*' | '/' | '%') expr
-      | expr ('+' | '-') expr
-      | expr ('<' | '>' | '<=' | '>=') expr
-      | expr ('&&' | '||') expr
-      | expr ('==' | '!=') expr
-      | '-' expr
-      | '!' expr
-      | LPAREN expr RPAREN;
+
+location : ID  #IdLocation
+          | ID LSQUARE expr RSQUARE  #ArrayLocation
+          ;
+
+expr : location   #LocationExpr
+      | method_call  #MethodCallExpr
+      | literal  #LiteralExpr
+      | expr ('*' | '/' | '%') expr  #MultGrpExpr
+      | expr ('+' | '-') expr  #AddGrpExpr
+      | expr ('<' | '>' | '<=' | '>=') expr  #CmpExpr
+      | expr ('&&' | '||') expr  #BoolOpExpr
+      | expr ('==' | '!=') expr  #EqOpExpr
+      | '-' expr  #NegExpr
+      | '!' expr  #NotExpr
+      | LPAREN expr RPAREN  #ParenExpr
+      ;
+
 callout_list : callout_arg (COMMA callout_arg)*;
 callout_arg : expr | STRING;
 expr_list : expr (COMMA expr)*;
