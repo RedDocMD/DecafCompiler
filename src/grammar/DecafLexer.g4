@@ -32,8 +32,8 @@ COMMA : ',';
 SEMICOLON : ';';
 DOT : '.';
 
-BIN_OP : ARITH_OP | REL_OP | EQ_OP | COND_OP;
-ASSIGN_OP : '=' | '+=' | '-=';
+BIN_OP : (ARITH_OP | REL_OP | EQ_OP | COND_OP);
+ASSIGN_OP : ('=' | '+=' | '-=');
 fragment ARITH_OP : [+\-*/%];
 fragment REL_OP : '<' | '>' | '<=' | '>=';
 fragment EQ_OP : '==' | '!=';

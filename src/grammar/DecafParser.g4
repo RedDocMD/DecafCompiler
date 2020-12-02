@@ -10,7 +10,7 @@ arglist : arg (COMMA arg)*;
 arg : type ID;
 block : LCURLY var_decl* statement* RCURLY;
 var_decl : type ID (COMMA ID)* SEMICOLON;
-statement : location ASSIGN_OP expr SEMICOLON
+statement : location assign_op expr SEMICOLON
             | method_call SEMICOLON
             | TK_IF LPAREN expr RPAREN block (TK_ELSE block)?
             | TK_FOR ID '=' expr COMMA expr block
@@ -18,6 +18,7 @@ statement : location ASSIGN_OP expr SEMICOLON
             | TK_BREAK  SEMICOLON
             | TK_CONTINUE SEMICOLON
             | block;
+assign_op : '=' | '+=' | '-=';
 method_call : method_name LPAREN expr_list? RPAREN
               | TK_CALLOUT LPAREN STRING (COMMA callout_list)? RPAREN;
 method_name : ID;
@@ -26,7 +27,11 @@ location : ID
 expr : location
       | method_call
       | literal
-      | expr BIN_OP expr
+      | expr ('*' | '/' | '%') expr
+      | expr ('+' | '-') expr
+      | expr ('<' | '>' | '<=' | '>=') expr
+      | expr ('&&' | '||') expr
+      | expr ('==' | '!=') expr
       | '-' expr
       | '!' expr
       | LPAREN expr RPAREN;
