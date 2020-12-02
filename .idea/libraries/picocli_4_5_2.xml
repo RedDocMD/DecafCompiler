@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="picocli-4.5.2">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/software/picocli-4.5.2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
