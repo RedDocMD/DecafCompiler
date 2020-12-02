@@ -5,7 +5,7 @@ import org.antlr.v4.runtime.*
 import java.io.*
 
 fun main(args: Array<String>) {
-    val exampleDirName = "/home/deep/work/compiler/provided1/scanner"
+    val exampleDirName = "/home/deep/work/compiler/provided1/parser"
     val exampleDir = File(exampleDirName)
     val fileNames = exampleDir.listFiles()?.filterNot { it.isDirectory }?.map { it.absolutePath }?.sorted()
     if (fileNames != null) {
@@ -13,7 +13,10 @@ fun main(args: Array<String>) {
             println("\n$fileName")
             val lexer = DecafLexer(CharStreams.fromFileName(fileName))
             lexer.removeErrorListeners()
-            lexer.addErrorListener(object : BaseErrorListener() {
+            val stream = CommonTokenStream(lexer)
+            val parser = DecafParser(stream)
+            parser.removeErrorListeners()
+            parser.addErrorListener(object : BaseErrorListener() {
                 override fun syntaxError(
                     recognizer: Recognizer<*, *>?,
                     offendingSymbol: Any?,
@@ -26,12 +29,7 @@ fun main(args: Array<String>) {
                     println(errMsg)
                 }
             })
-            var token: Token
-            token = lexer.nextToken()
-            while (token.type != Token.EOF) {
-                println("${token.line} ${lexer.vocabulary.getSymbolicName(token.type)}  ${token.text}")
-                token = lexer.nextToken()
-            }
+            parser.program()
         }
     }
 }

@@ -1,5 +1,5 @@
-grammar DecafParser;
-import DecafLexer;
+grammar Decaf;
+import DecafTokens;
 
 program :  TK_CLASS ID LCURLY field_decl* method_decl* RCURLY;
 field_decl : type field_name (COMMA field_name)* SEMICOLON;
