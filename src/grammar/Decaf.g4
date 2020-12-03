@@ -2,12 +2,15 @@ grammar Decaf;
 import DecafTokens;
 
 program :  TK_CLASS ID LCURLY field_decl* method_decl* RCURLY;
+
 field_decl : type field_name (COMMA field_name)* SEMICOLON;
 field_name : ID | ID LSQUARE NUMBER RSQUARE;
 type : TK_BOOLEAN | TK_INT;
+
 method_decl : (type | TK_VOID) ID LPAREN arglist? RPAREN block;
 arglist : arg (COMMA arg)*;
 arg : type ID;
+
 block : LCURLY var_decl* statement* RCURLY;
 var_decl : type ID (COMMA ID)* SEMICOLON;
 

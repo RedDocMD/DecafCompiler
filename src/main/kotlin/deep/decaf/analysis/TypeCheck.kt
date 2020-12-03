@@ -21,7 +21,7 @@ class TypeAssigner : DecafBaseVisitor<Type>() {
             var nonErrorCount = 0
             for (fieldDecl in fieldDecls) {
                 if (visit(fieldDecl) != Type.ERROR) {
-                   nonErrorCount++
+                    nonErrorCount++
                 }
             }
             for (methodDecl in methodDecls) {
@@ -75,12 +75,22 @@ class TypeAssigner : DecafBaseVisitor<Type>() {
         else Type.ERROR
     }
 
+    override fun visitBlock(ctx: DecafParser.BlockContext?): Type {
+        return if (ctx != null) {
+            val varDecls = ctx.var_decl()
+            val statements = ctx.statement()
+            val noErrorCount =
+                varDecls.sumBy { if (visit(it) != Type.ERROR) 1 else 0 } + statements.sumBy { if (visit(it) != Type.ERROR) 1 else 0 }
+            if (noErrorCount == varDecls.size + statements.size) Type.VOID else Type.ERROR
+        } else Type.ERROR
+    }
+
     // Expression visitors start
     override fun visitNegExpr(ctx: DecafParser.NegExprContext?): Type {
         return if (ctx != null) {
             if (visit(ctx.expr()) == Type.INT) {
                 Type.INT
-            } else  Type.ERROR
+            } else Type.ERROR
         } else Type.ERROR
     }
 
@@ -89,6 +99,7 @@ class TypeAssigner : DecafBaseVisitor<Type>() {
             if (visit(ctx.expr()) == Type.BOOL) Type.BOOL else Type.ERROR
         } else Type.ERROR
     }
+
     override fun visitMultGrpExpr(ctx: DecafParser.MultGrpExprContext?): Type {
         return if (ctx != null) {
             val leftType = visit(ctx.expr(0))
