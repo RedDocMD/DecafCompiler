@@ -262,6 +262,18 @@ public interface DecafListener extends ParseTreeListener {
 	 */
 	void exitArrayLocation(DecafParser.ArrayLocationContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code AndExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 */
+	void enterAndExpr(DecafParser.AndExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code AndExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 */
+	void exitAndExpr(DecafParser.AndExprContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code LocationExpr}
 	 * labeled alternative in {@link DecafParser#expr}.
 	 * @param ctx the parse tree
@@ -322,18 +334,6 @@ public interface DecafListener extends ParseTreeListener {
 	 */
 	void exitNegExpr(DecafParser.NegExprContext ctx);
 	/**
-	 * Enter a parse tree produced by the {@code BoolOpExpr}
-	 * labeled alternative in {@link DecafParser#expr}.
-	 * @param ctx the parse tree
-	 */
-	void enterBoolOpExpr(DecafParser.BoolOpExprContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code BoolOpExpr}
-	 * labeled alternative in {@link DecafParser#expr}.
-	 * @param ctx the parse tree
-	 */
-	void exitBoolOpExpr(DecafParser.BoolOpExprContext ctx);
-	/**
 	 * Enter a parse tree produced by the {@code EqOpExpr}
 	 * labeled alternative in {@link DecafParser#expr}.
 	 * @param ctx the parse tree
@@ -381,6 +381,18 @@ public interface DecafListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitAddGrpExpr(DecafParser.AddGrpExprContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code OrExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 */
+	void enterOrExpr(DecafParser.OrExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code OrExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 */
+	void exitOrExpr(DecafParser.OrExprContext ctx);
 	/**
 	 * Enter a parse tree produced by the {@code MethodCallExpr}
 	 * labeled alternative in {@link DecafParser#expr}.

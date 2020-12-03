@@ -35,13 +35,14 @@ location : ID  #IdLocation
 expr : location   #LocationExpr
       | method_call  #MethodCallExpr
       | literal  #LiteralExpr
-      | expr ('*' | '/' | '%') expr  #MultGrpExpr
-      | expr ('+' | '-') expr  #AddGrpExpr
-      | expr ('<' | '>' | '<=' | '>=') expr  #CmpExpr
-      | expr ('&&' | '||') expr  #BoolOpExpr
-      | expr ('==' | '!=') expr  #EqOpExpr
       | '-' expr  #NegExpr
       | '!' expr  #NotExpr
+      | expr op=('*' | '/' | '%') expr  #MultGrpExpr
+      | expr op=('+' | '-') expr  #AddGrpExpr
+      | expr op=('<' | '>' | '<=' | '>=') expr  #CmpExpr
+      | expr op=('==' | '!=') expr  #EqOpExpr
+      | expr '&&' expr  #AndExpr
+      | expr '||' expr  #OrExpr
       | LPAREN expr RPAREN  #ParenExpr
       ;
 

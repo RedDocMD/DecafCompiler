@@ -161,6 +161,13 @@ public interface DecafVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitArrayLocation(DecafParser.ArrayLocationContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code AndExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAndExpr(DecafParser.AndExprContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code LocationExpr}
 	 * labeled alternative in {@link DecafParser#expr}.
 	 * @param ctx the parse tree
@@ -196,13 +203,6 @@ public interface DecafVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitNegExpr(DecafParser.NegExprContext ctx);
 	/**
-	 * Visit a parse tree produced by the {@code BoolOpExpr}
-	 * labeled alternative in {@link DecafParser#expr}.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	T visitBoolOpExpr(DecafParser.BoolOpExprContext ctx);
-	/**
 	 * Visit a parse tree produced by the {@code EqOpExpr}
 	 * labeled alternative in {@link DecafParser#expr}.
 	 * @param ctx the parse tree
@@ -230,6 +230,13 @@ public interface DecafVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitAddGrpExpr(DecafParser.AddGrpExprContext ctx);
+	/**
+	 * Visit a parse tree produced by the {@code OrExpr}
+	 * labeled alternative in {@link DecafParser#expr}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitOrExpr(DecafParser.OrExprContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code MethodCallExpr}
 	 * labeled alternative in {@link DecafParser#expr}.
