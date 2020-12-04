@@ -290,3 +290,5 @@ fun positionOfContext(ctx: ParserRuleContext): Position {
     val startToken = ctx.start
     return Position(startToken.line, startToken.charPositionInLine)
 }
+
+fun parseTreeToIR(tree: DecafParser.ProgramContext): IR = ParseTreeToIR().visit(tree)
