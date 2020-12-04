@@ -7,27 +7,26 @@ enum class Type {
     ERROR
 }
 
+data class Position(val line: Int, val column: Int)
+
 abstract class IR
 
+abstract class IRExpr(val pos: Position) : IR()
 
-abstract class IRExpr : IR()
+abstract class IRLiteral(val type: Type, pos: Position) : IRExpr(pos)
+class IRIntLiteral(val lit: Int, pos: Position) : IRLiteral(Type.INT, pos)
+class IRBoolLiteral(val lit: Boolean, pos: Position) : IRLiteral(Type.BOOL, pos)
 
-abstract class IRLiteral(val type: Type) : IRExpr()
-data class IRIntLiteral(val lit: Int) : IRLiteral(Type.INT)
+abstract class IRCallExpr(val name: String, private val returnType: Type, pos: Position) : IRExpr(pos)
 
-
-data class IRBoolLiteral(val lit: Boolean) : IRLiteral(Type.BOOL)
-
-abstract class IRCallExpr(val name: String, private val returnType: Type) : IRExpr()
-
-class IRMethodCallExpr(name: String, returnType: Type, val argList: List<IRExpr>) : IRCallExpr(name, returnType)
-class IRCallOutExpr(name: String, val argList: List<CallOutArg>) : IRCallExpr(name, Type.INT)
+class IRMethodCallExpr(name: String, returnType: Type, val argList: List<IRExpr>, pos: Position) : IRCallExpr(name, returnType, pos)
+class IRCallOutExpr(name: String, val argList: List<CallOutArg>, pos: Position) : IRCallExpr(name, Type.INT, pos)
 
 sealed class CallOutArg
 data class StringCallOutArg(val arg: String) : CallOutArg()
 data class ExprCallOutArg(val arg: IRExpr) : CallOutArg()
 
-data class IRBinOpExpr(val left: IRExpr, val right: IRExpr, val op: BinOp) : IRExpr()
+class IRBinOpExpr(val left: IRExpr, val right: IRExpr, val op: BinOp, pos: Position) : IRExpr(pos)
 
 enum class BinOp {
     ADD,
@@ -45,41 +44,45 @@ enum class BinOp {
     OR
 }
 
-data class IRUnaryOpExpr(val expr: IRExpr, val op: UnaryOp) : IRExpr()
+class IRUnaryOpExpr(val expr: IRExpr, val op: UnaryOp, pos: Position) : IRExpr(pos)
 
 enum class UnaryOp {
     MINUS,
     NOT
 }
 
-class IRLocationExpression(val location: IRLocation) : IRExpr()
+class IRLocationExpression(val location: IRLocation, pos: Position) : IRExpr(pos)
 
-abstract class IRLocation(val name: String) : IR()
-class IRIDLocation(name: String) : IRLocation(name)
-class IRArrayLocation(name: String, indexExpr: IRExpr) : IRLocation(name)
+abstract class IRLocation(val name: String, val pos: Position) : IR()
+class IRIDLocation(name: String, pos: Position) : IRLocation(name, pos)
+class IRArrayLocation(name: String, indexExpr: IRExpr, pos: Position) : IRLocation(name, pos)
 
 class IRBlock(val fieldDeclarations: List<IRVarDeclaration>, val statements: List<IRStatement>) : IR()
 
-abstract class IRMemberDeclaration(val type: Type, val name: String) : IR()
-class IRVarDeclaration(type: Type, name: String) : IRMemberDeclaration(type, name)
-class IRRegularFieldDeclaration(type: Type, name: String) : IRMemberDeclaration(type, name)
-class IRArrayFieldDeclaration(type: Type, name: String, size: Int) : IRMemberDeclaration(type, name)
-class IRMethodDeclaration(returnType: Type, name: String, val argList: List<Arg>) : IRMemberDeclaration(returnType, name)
+abstract class IRMemberDeclaration(val type: Type, val name: String, val pos: Position) : IR()
+class IRVarDeclaration(type: Type, name: String, pos: Position) : IRMemberDeclaration(type, name, pos)
+class IRRegularFieldDeclaration(type: Type, name: String, pos: Position) : IRMemberDeclaration(type, name, pos)
+class IRArrayFieldDeclaration(type: Type, name: String, size: Int, pos: Position) : IRMemberDeclaration(type, name, pos)
+class IRMethodDeclaration(returnType: Type, name: String, val argList: List<Arg>, pos: Position) : IRMemberDeclaration(returnType, name, pos)
 
 data class Arg(val type: Type, val name: String)
 
-abstract class IRStatement : IR()
+abstract class IRStatement(val pos: Position) : IR()
 
-abstract class IRAssignStatement(val location: IRLocation, val expr: IRExpr)
-class IRDirectAssignStatement(location: IRLocation, expr: IRExpr) : IRAssignStatement(location, expr)
-class IRIncrementStatement(location: IRLocation, expr: IRExpr) : IRAssignStatement(location, expr)
-class IRDecrementStatement(location: IRLocation, expr: IRExpr) : IRAssignStatement(location, expr)
+abstract class IRAssignStatement(val location: IRLocation, val expr: IRExpr, pos: Position) : IRStatement(pos)
+class IRDirectAssignStatement(location: IRLocation, expr: IRExpr, pos: Position) : IRAssignStatement(location, expr, pos)
+class IRIncrementStatement(location: IRLocation, expr: IRExpr, pos: Position) : IRAssignStatement(location, expr, pos)
+class IRDecrementStatement(location: IRLocation, expr: IRExpr, pos: Position) : IRAssignStatement(location, expr, pos)
 
-class IRBreakStatement() : IRStatement()
-class IRContinueStatement(): IRStatement()
+class IRBreakStatement(pos: Position) : IRStatement(pos)
+class IRContinueStatement(pos: Position): IRStatement(pos)
 
-class IRIfStatement(val condition: IRExpr, val ifBlock: IRBlock, val elseBlock: IRBlock?) : IRStatement()
-class IRForStatement(val loopVar: String, val initExpr: IRExpr, val condition: IRExpr, val body: IRBlock) : IRStatement()
+class IRIfStatement(val condition: IRExpr, val ifBlock: IRBlock, val elseBlock: IRBlock?, pos: Position) : IRStatement(pos)
+class IRForStatement(val loopVar: String, val initExpr: IRExpr, val condition: IRExpr, val body: IRBlock, pos: Position) : IRStatement(pos)
 
-class IRReturnStatement(val expr: IRExpr?) : IRStatement()
-class IRInvokeStatement(val expr: IRCallExpr) : IRStatement()
+class IRReturnStatement(val expr: IRExpr?, pos: Position) : IRStatement(pos)
+class IRInvokeStatement(val expr: IRCallExpr, pos: Position) : IRStatement(pos)
+
+class IRProgram(val name: String, declarations: List<IRMemberDeclaration>) : IR()
+
+class IRNone(): IR() // A nil node
