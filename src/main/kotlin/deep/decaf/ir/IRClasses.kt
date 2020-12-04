@@ -1,7 +1,5 @@
 package deep.decaf.ir
 
-import sun.util.resources.ext.*
-
 enum class Type {
     INT,
     BOOL,
@@ -22,7 +20,7 @@ data class IRBoolLiteral(val lit: Boolean) : IRLiteral(Type.BOOL)
 
 abstract class IRCallExpr(val name: String, private val returnType: Type) : IRExpr()
 
-class IRMethodCallExpr(name: String, returnType: Type, val argTypes: List<Type>) : IRCallExpr(name, returnType)
+class IRMethodCallExpr(name: String, returnType: Type, val argList: List<IRExpr>) : IRCallExpr(name, returnType)
 class IRCallOutExpr(name: String, val argList: List<CallOutArg>) : IRCallExpr(name, Type.INT)
 
 sealed class CallOutArg
@@ -60,6 +58,16 @@ abstract class IRLocation(val name: String) : IR()
 class IRIDLocation(name: String) : IRLocation(name)
 class IRArrayLocation(name: String, indexExpr: IRExpr) : IRLocation(name)
 
+class IRBlock(val fieldDeclarations: List<IRVarDeclaration>, val statements: List<IRStatement>) : IR()
+
+abstract class IRMemberDeclaration(val type: Type, val name: String) : IR()
+class IRVarDeclaration(type: Type, name: String) : IRMemberDeclaration(type, name)
+class IRRegularFieldDeclaration(type: Type, name: String) : IRMemberDeclaration(type, name)
+class IRArrayFieldDeclaration(type: Type, name: String, size: Int) : IRMemberDeclaration(type, name)
+class IRMethodDeclaration(returnType: Type, name: String, val argList: List<Arg>) : IRMemberDeclaration(returnType, name)
+
+data class Arg(val type: Type, val name: String)
+
 abstract class IRStatement : IR()
 
 abstract class IRAssignStatement(val location: IRLocation, val expr: IRExpr)
@@ -69,3 +77,9 @@ class IRDecrementStatement(location: IRLocation, expr: IRExpr) : IRAssignStateme
 
 class IRBreakStatement() : IRStatement()
 class IRContinueStatement(): IRStatement()
+
+class IRIfStatement(val condition: IRExpr, val ifBlock: IRBlock, val elseBlock: IRBlock?) : IRStatement()
+class IRForStatement(val loopVar: String, val initExpr: IRExpr, val condition: IRExpr, val body: IRBlock) : IRStatement()
+
+class IRReturnStatement(val expr: IRExpr?) : IRStatement()
+class IRInvokeStatement(val expr: IRCallExpr) : IRStatement()
