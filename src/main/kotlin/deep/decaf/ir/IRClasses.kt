@@ -9,7 +9,7 @@ enum class Type {
 
 data class Position(val line: Int, val column: Int)
 
-abstract class IR
+sealed class IR
 
 abstract class IRExpr(val pos: Position) : IR()
 
@@ -17,10 +17,10 @@ abstract class IRLiteral(val type: Type, pos: Position) : IRExpr(pos)
 class IRIntLiteral(val lit: Int, pos: Position) : IRLiteral(Type.INT, pos)
 class IRBoolLiteral(val lit: Boolean, pos: Position) : IRLiteral(Type.BOOL, pos)
 
-abstract class IRCallExpr(val name: String, private val returnType: Type, pos: Position) : IRExpr(pos)
+abstract class IRCallExpr(val name: String, pos: Position) : IRExpr(pos)
 
-class IRMethodCallExpr(name: String, returnType: Type, val argList: List<IRExpr>, pos: Position) : IRCallExpr(name, returnType, pos)
-class IRCallOutExpr(name: String, val argList: List<CallOutArg>, pos: Position) : IRCallExpr(name, Type.INT, pos)
+class IRMethodCallExpr(name: String, val argList: List<IRExpr>, pos: Position) : IRCallExpr(name, pos)
+class IRCallOutExpr(name: String, val argList: List<CallOutArg>, pos: Position) : IRCallExpr(name, pos)
 
 sealed class CallOutArg
 data class StringCallOutArg(val arg: String) : CallOutArg()
@@ -85,4 +85,4 @@ class IRInvokeStatement(val expr: IRCallExpr, pos: Position) : IRStatement(pos)
 
 class IRProgram(val name: String, declarations: List<IRMemberDeclaration>) : IR()
 
-class IRNone(): IR() // A nil node
+object IRNone : IR() // A nil node
