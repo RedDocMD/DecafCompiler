@@ -2,79 +2,138 @@ package deep.decaf.ir
 
 import deep.decaf.parser.*
 import org.antlr.v4.runtime.*
-import kotlin.math.*
 
 class ParseTreeToIR : DecafBaseVisitor<IR>() {
     override fun visitProgram(ctx: DecafParser.ProgramContext?): IR {
-        return super.visitProgram(ctx)
-    }
-
-    override fun visitField_decl(ctx: DecafParser.Field_declContext?): IR {
-        return super.visitField_decl(ctx)
-    }
-
-    override fun visitField_name(ctx: DecafParser.Field_nameContext?): IR {
-        return super.visitField_name(ctx)
-    }
-
-    override fun visitType(ctx: DecafParser.TypeContext?): IR {
-        return super.visitType(ctx)
+        return if (ctx != null) {
+            val fieldsDeclarations = ctx.field_decl()
+            val fieldDeclarationList = mutableListOf<IRFieldDeclaration>()
+            for (fieldDeclaration in fieldsDeclarations) {
+                val type = if (fieldDeclaration.type().text == DecafLexer.TK_INT.toString()) Type.INT else Type.BOOL
+                val position = positionOfContext(fieldDeclaration)
+                for (field in fieldDeclaration.field_name()) {
+                    val name = field.ID().text
+                    fieldDeclarationList.add(
+                        if (field.LSQUARE() != null) IRArrayFieldDeclaration(
+                            type,
+                            name,
+                            Integer.valueOf(field.NUMBER().text),
+                            position
+                        ) else IRRegularFieldDeclaration(type, name, position)
+                    )
+                }
+            }
+            val methodDeclarations = ctx.method_decl().map { visit(it) as IRMethodDeclaration }
+            IRProgram(ctx.ID().text, fieldDeclarationList, methodDeclarations)
+        } else IRNone
     }
 
     override fun visitMethod_decl(ctx: DecafParser.Method_declContext?): IR {
-        return super.visitMethod_decl(ctx)
-    }
-
-    override fun visitArglist(ctx: DecafParser.ArglistContext?): IR {
-        return super.visitArglist(ctx)
-    }
-
-    override fun visitArg(ctx: DecafParser.ArgContext?): IR {
-        return super.visitArg(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val methodName = ctx.ID().text
+            val returnType = when {
+                ctx.TK_VOID() != null -> Type.VOID
+                ctx.type().text == DecafLexer.TK_INT.toString() -> Type.INT
+                else -> Type.BOOL
+            }
+            val args = ctx.arglist().arg()
+            val argList = mutableListOf<Arg>()
+            if (args != null) {
+                argList.addAll(args.map {
+                    Arg(
+                        if (it.type().text == DecafLexer.TK_INT.toString()) Type.INT else Type.BOOL,
+                        it.ID().text
+                    )
+                })
+            }
+            val block = visit(ctx.block()) as IRBlock
+            IRMethodDeclaration(returnType, methodName, argList, block, position)
+        } else IRNone
     }
 
     override fun visitBlock(ctx: DecafParser.BlockContext?): IR {
-        return super.visitBlock(ctx)
-    }
-
-    override fun visitVar_decl(ctx: DecafParser.Var_declContext?): IR {
-        return super.visitVar_decl(ctx)
+        return if (ctx != null) {
+            val varDeclarations = ctx.var_decl()
+            val varDeclarationList = mutableListOf<IRVarDeclaration>()
+            for (varDeclaration in varDeclarations) {
+                val type = if (varDeclaration.type().text == DecafLexer.TK_INT.toString()) Type.INT else Type.BOOL
+                val position = positionOfContext(varDeclaration)
+                for (id in varDeclaration.ID()) {
+                    varDeclarationList.add(IRVarDeclaration(type, id.text, position))
+                }
+            }
+            val statements = ctx.statement().map { visit(it) as IRStatement }
+            IRBlock(varDeclarationList, statements)
+        } else IRNone
     }
 
     override fun visitAssignStmt(ctx: DecafParser.AssignStmtContext?): IR {
-        return super.visitAssignStmt(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val location = visit(ctx.location()) as IRLocation
+            val expression = visit(ctx.expr()) as IRExpr
+            when (ctx.assign_op().text) {
+                "=" -> IRDirectAssignStatement(location, expression, position)
+                "+=" -> IRIncrementStatement(location, expression, position)
+                else -> IRDecrementStatement(location, expression, position)
+            }
+        } else IRNone
     }
 
     override fun visitMethodCallStmt(ctx: DecafParser.MethodCallStmtContext?): IR {
-        return super.visitMethodCallStmt(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val callExpression = visit(ctx.method_call()) as IRCallExpr
+            IRInvokeStatement(callExpression, position)
+        } else IRNone
     }
 
     override fun visitIfStmt(ctx: DecafParser.IfStmtContext?): IR {
-        return super.visitIfStmt(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val condition = visit(ctx.expr()) as IRExpr
+            val ifBlock = visit(ctx.block(0)) as IRBlock
+            if (ctx.block().size == 1) {
+                IRIfStatement(condition, ifBlock, null, position)
+            } else {
+                val elseBlock = visit(ctx.block(1)) as IRBlock
+                IRIfStatement(condition, ifBlock, elseBlock, position)
+            }
+        } else IRNone
     }
 
     override fun visitForStmt(ctx: DecafParser.ForStmtContext?): IR {
-        return super.visitForStmt(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val loopVarName = ctx.ID().text
+            val initExpr = visit(ctx.expr(0)) as IRExpr
+            val loopCondition = visit(ctx.expr(1)) as IRExpr
+            val body = visit(ctx.block()) as IRBlock
+            IRForStatement(loopVarName, initExpr, loopCondition, body, position)
+        } else IRNone
     }
 
     override fun visitReturnStmt(ctx: DecafParser.ReturnStmtContext?): IR {
-        return super.visitReturnStmt(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val expr = visit(ctx.expr())
+            if (expr == IRNone) IRReturnStatement(null, position) else IRReturnStatement(expr as IRExpr, position)
+        } else IRNone
     }
 
     override fun visitBreakStmt(ctx: DecafParser.BreakStmtContext?): IR {
-        return super.visitBreakStmt(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            IRBreakStatement(position)
+        } else IRNone
     }
 
     override fun visitContinueStmt(ctx: DecafParser.ContinueStmtContext?): IR {
-        return super.visitContinueStmt(ctx)
-    }
-
-    override fun visitBlockStmt(ctx: DecafParser.BlockStmtContext?): IR {
-        return super.visitBlockStmt(ctx)
-    }
-
-    override fun visitAssign_op(ctx: DecafParser.Assign_opContext?): IR {
-        return super.visitAssign_op(ctx)
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            IRContinueStatement(position)
+        } else IRNone
     }
 
     override fun visitSimpleMethodCall(ctx: DecafParser.SimpleMethodCallContext?): IR {
@@ -84,7 +143,7 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             val exprList = ctx.expr_list()?.expr()
             val argList = mutableListOf<IRExpr>()
             if (exprList != null) {
-               argList.addAll(exprList.map { visit(it) as IRExpr })
+                argList.addAll(exprList.map { visit(it) as IRExpr })
             }
             IRMethodCallExpr(methodName, argList, position)
         } else IRNone
@@ -97,10 +156,10 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             val callOutList = ctx.callout_list().callout_arg()
             val callOutArgs = mutableListOf<CallOutArg>()
             if (callOutList != null) {
-               callOutArgs.addAll(callOutList.map {
-                   if (it.STRING() != null) StringCallOutArg(it.STRING().text)
-                   else ExprCallOutArg(visit(it.expr()) as IRExpr)
-               })
+                callOutArgs.addAll(callOutList.map {
+                    if (it.STRING() != null) StringCallOutArg(it.STRING().text)
+                    else ExprCallOutArg(visit(it.expr()) as IRExpr)
+                })
             }
             IRCallOutExpr(callOutName, callOutArgs, position)
         } else IRNone
@@ -132,16 +191,12 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
         } else IRNone
     }
 
-    override fun visitLocationExpr(ctx: DecafParser.LocationExprContext?): IR {
-        return super.visitLocationExpr(ctx)
-    }
-
     override fun visitMultGrpExpr(ctx: DecafParser.MultGrpExprContext?): IR {
         return if (ctx != null) {
             val position = positionOfContext(ctx)
             val leftExpr = visit(ctx.expr(0)) as IRExpr
             val rightExpr = visit(ctx.expr(1)) as IRExpr
-            val op = when(ctx.op.text) {
+            val op = when (ctx.op.text) {
                 "*" -> BinOp.MULTIPLY
                 "/" -> BinOp.DIVIDE
                 else -> BinOp.REMAINDER
@@ -155,7 +210,7 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             val position = positionOfContext(ctx)
             val leftExpr = visit(ctx.expr(0)) as IRExpr
             val rightExpr = visit(ctx.expr(1)) as IRExpr
-            val op = when(ctx.op.text) {
+            val op = when (ctx.op.text) {
                 "<" -> BinOp.LESS
                 ">" -> BinOp.MORE
                 "<=" -> BinOp.LESS_OR_EQ
@@ -163,10 +218,6 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             }
             IRBinOpExpr(leftExpr, rightExpr, op, position)
         } else IRNone
-    }
-
-    override fun visitLiteralExpr(ctx: DecafParser.LiteralExprContext?): IR {
-        return super.visitLiteralExpr(ctx)
     }
 
     override fun visitNegExpr(ctx: DecafParser.NegExprContext?): IR {
@@ -195,10 +246,6 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
         } else IRNone
     }
 
-    override fun visitParenExpr(ctx: DecafParser.ParenExprContext?): IR {
-        return super.visitParenExpr(ctx)
-    }
-
     override fun visitAddGrpExpr(ctx: DecafParser.AddGrpExprContext?): IR {
         return if (ctx != null) {
             val position = positionOfContext(ctx)
@@ -218,10 +265,6 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
         } else IRNone
     }
 
-    override fun visitMethodCallExpr(ctx: DecafParser.MethodCallExprContext?): IR {
-        return super.visitMethodCallExpr(ctx)
-    }
-
     override fun visitLiteral(ctx: DecafParser.LiteralContext?): IR {
         return if (ctx != null) {
             val position = positionOfContext(ctx)
@@ -235,7 +278,7 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
                 }
                 ctx.CHAR() != null -> {
                     val char = ctx.CHAR().text[1]
-                    IRIntLiteral(Character.getNumericValue(char) ,position)
+                    IRIntLiteral(Character.getNumericValue(char), position)
                 }
                 else -> IRNone
             }
