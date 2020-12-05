@@ -9,17 +9,22 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             val fieldsDeclarations = ctx.field_decl()
             val fieldDeclarationList = mutableListOf<IRFieldDeclaration>()
             for (fieldDeclaration in fieldsDeclarations) {
-                val type = if (fieldDeclaration.type().text == DecafLexer.TK_INT.toString()) Type.INT else Type.BOOL
+                val type = if (fieldDeclaration.type().text == "int") Type.INT else Type.BOOL
                 val position = positionOfContext(fieldDeclaration)
                 for (field in fieldDeclaration.field_name()) {
                     val name = field.ID().text
                     fieldDeclarationList.add(
-                        if (field.LSQUARE() != null) IRArrayFieldDeclaration(
-                            type,
-                            name,
-                            Integer.valueOf(field.NUMBER().text),
-                            position
-                        ) else IRRegularFieldDeclaration(type, name, position)
+                        if (field.LSQUARE() != null) {
+                            val numText = field.NUMBER().text
+                            val num = if (numText.startsWith("0x")) Integer.valueOf(numText.substring(2), 16)
+                            else Integer.valueOf(numText, 10)
+                            IRArrayFieldDeclaration(
+                                type,
+                                name,
+                                num,
+                                position
+                            )
+                        } else IRRegularFieldDeclaration(type, name, position)
                     )
                 }
             }
@@ -34,15 +39,16 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             val methodName = ctx.ID().text
             val returnType = when {
                 ctx.TK_VOID() != null -> Type.VOID
-                ctx.type().text == DecafLexer.TK_INT.toString() -> Type.INT
+                ctx.type().text == "int" -> Type.INT
                 else -> Type.BOOL
             }
-            val args = ctx.arglist().arg()
+            val argsOriginalList = ctx.arglist()
             val argList = mutableListOf<Arg>()
-            if (args != null) {
+            if (argsOriginalList != null) {
+                val args = argsOriginalList.arg()
                 argList.addAll(args.map {
                     Arg(
-                        if (it.type().text == DecafLexer.TK_INT.toString()) Type.INT else Type.BOOL,
+                        if (it.type().text == "int") Type.INT else Type.BOOL,
                         it.ID().text
                     )
                 })
@@ -57,7 +63,7 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
             val varDeclarations = ctx.var_decl()
             val varDeclarationList = mutableListOf<IRVarDeclaration>()
             for (varDeclaration in varDeclarations) {
-                val type = if (varDeclaration.type().text == DecafLexer.TK_INT.toString()) Type.INT else Type.BOOL
+                val type = if (varDeclaration.type().text == "int") Type.INT else Type.BOOL
                 val position = positionOfContext(varDeclaration)
                 for (id in varDeclaration.ID()) {
                     varDeclarationList.add(IRVarDeclaration(type, id.text, position))
@@ -256,6 +262,40 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
         } else IRNone
     }
 
+    override fun visitLocationExpr(ctx: DecafParser.LocationExprContext?): IR {
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val location = visit(ctx.location()) as IRLocation
+            IRLocationExpression(location, position)
+        } else IRNone
+    }
+
+    override fun visitParenExpr(ctx: DecafParser.ParenExprContext?): IR {
+        return if (ctx != null) {
+            visit(ctx.expr())
+        } else IRNone
+    }
+
+    override fun visitLiteralExpr(ctx: DecafParser.LiteralExprContext?): IR {
+        return if (ctx != null) {
+            visit(ctx.literal())
+        } else IRNone
+    }
+
+    override fun visitBlockStmt(ctx: DecafParser.BlockStmtContext?): IR {
+        return if (ctx != null) {
+            val position = positionOfContext(ctx)
+            val block = visit(ctx.block()) as IRBlock
+            IRBlockStatement(block, position)
+        } else IRNone
+    }
+
+    override fun visitMethodCallExpr(ctx: DecafParser.MethodCallExprContext?): IR {
+        return if (ctx != null) {
+            visit(ctx.method_call())
+        } else IRNone
+    }
+
     override fun visitOrExpr(ctx: DecafParser.OrExprContext?): IR {
         return if (ctx != null) {
             val position = positionOfContext(ctx)
@@ -274,7 +314,10 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
                     IRBoolLiteral(lit, position)
                 }
                 ctx.NUMBER() != null -> {
-                    IRIntLiteral(Integer.valueOf(ctx.NUMBER().text), position)
+                    val numText = ctx.NUMBER().text
+                    val num = if (numText.startsWith("0x")) Integer.valueOf(numText.substring(2), 16)
+                    else Integer.valueOf(numText, 10)
+                    IRIntLiteral(num, position)
                 }
                 ctx.CHAR() != null -> {
                     val char = ctx.CHAR().text[1]

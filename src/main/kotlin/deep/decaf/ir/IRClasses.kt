@@ -54,6 +54,8 @@ sealed class IRLocation(val name: String, val pos: Position) : IR()
 class IRIDLocation(name: String, pos: Position) : IRLocation(name, pos)
 class IRArrayLocation(name: String, val indexExpr: IRExpr, pos: Position) : IRLocation(name, pos)
 
+class IRLocationExpression(val location: IRLocation, pos: Position) : IRExpr(pos)
+
 class IRBlock(val fieldDeclarations: List<IRVarDeclaration>, val statements: List<IRStatement>) : IR()
 
 sealed class IRMemberDeclaration(val type: Type, val name: String, val pos: Position) : IR()
@@ -98,6 +100,7 @@ class IRForStatement(
 
 class IRReturnStatement(val expr: IRExpr?, pos: Position) : IRStatement(pos)
 class IRInvokeStatement(val expr: IRCallExpr, pos: Position) : IRStatement(pos)
+class IRBlockStatement(val block: IRBlock, pos: Position) : IRStatement(pos)
 
 class IRProgram(
     val name: String,
@@ -107,7 +110,7 @@ class IRProgram(
 
 object IRNone : IR() // A nil node
 
-fun irToString(irNode: IR, noOfTabs: Int): String {
+fun irToString(irNode: IR, noOfTabs: Int = 0): String {
     val output = StringBuilder()
     val tabPref = StringBuilder()
     for (i in 1..noOfTabs) {
@@ -117,9 +120,9 @@ fun irToString(irNode: IR, noOfTabs: Int): String {
         is IRIntLiteral -> output.append("${irNode.lit}")
         is IRBoolLiteral -> output.append("${irNode.lit}")
         is IRMethodCallExpr -> {
-            output.append("(${irNode.name}( ")
+            output.append("${irNode.name}(")
             val argStrings = irNode.argList.map { irToString(it, noOfTabs) }
-            output.append(argStrings.joinToString()).append("))")
+            output.append(argStrings.joinToString()).append(")")
         }
         is IRCallOutExpr -> {
             output.append("(callout ${irNode.name}(")
@@ -161,6 +164,7 @@ fun irToString(irNode: IR, noOfTabs: Int): String {
         }
         is IRIDLocation -> output.append(irNode.name)
         is IRArrayLocation -> output.append("${irNode.name}[${irToString(irNode.indexExpr, noOfTabs)}]")
+        is IRLocationExpression -> output.append(irToString(irNode.location, noOfTabs))
         is IRBlock -> {
             for (varDeclaration in irNode.fieldDeclarations) {
                 output.append(irToString(varDeclaration, noOfTabs + 1))
@@ -193,7 +197,8 @@ fun irToString(irNode: IR, noOfTabs: Int): String {
         is IRMethodDeclaration -> {
             val returnType = when (irNode.type) {
                 Type.BOOL -> "bool"
-                else -> "int"
+                Type.INT -> "int"
+                else -> "void"
             }
             val argStrings = irNode.argList.map {
                 val type = when (it.type) {
@@ -207,13 +212,10 @@ fun irToString(irNode: IR, noOfTabs: Int): String {
                 .append(irToString(irNode.block, noOfTabs + 1))
         }
         is IRDirectAssignStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" = ")
-            .append(irToString(irNode.expr, noOfTabs)).append("\n").append(" = ")
             .append(irToString(irNode.expr, noOfTabs)).append("\n")
         is IRIncrementStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" = ")
-            .append(irToString(irNode.expr, noOfTabs)).append("\n").append(" += ")
             .append(irToString(irNode.expr, noOfTabs)).append("\n")
         is IRDecrementStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" = ")
-            .append(irToString(irNode.expr, noOfTabs)).append("\n").append(" -= ")
             .append(irToString(irNode.expr, noOfTabs)).append("\n")
         is IRBreakStatement -> output.append(tabPref).append("break").append("\n")
         is IRContinueStatement -> output.append(tabPref).append("continue").append("\n")
@@ -237,13 +239,14 @@ fun irToString(irNode: IR, noOfTabs: Int): String {
             output.append(irToString(irNode.body, noOfTabs + 1))
         }
         is IRReturnStatement -> {
-            output.append(tabPref).append("return")
+            output.append(tabPref).append("return ")
             if (irNode.expr != null) {
                 output.append(irToString(irNode.expr, noOfTabs))
             }
             output.append("\n")
         }
         is IRInvokeStatement -> output.append(tabPref).append(irToString(irNode.expr, noOfTabs)).append("\n")
+        is IRBlockStatement -> output.append(irNode.block, noOfTabs)
         is IRProgram -> {
             output.append(tabPref).append("class ${irNode.name}").append("\n")
             for (fieldDeclaration in irNode.fieldDeclarations) {
