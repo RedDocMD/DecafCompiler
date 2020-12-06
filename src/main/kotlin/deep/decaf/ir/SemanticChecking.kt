@@ -1,7 +1,9 @@
 package deep.decaf.ir
 
 data class SemanticErrorMessage(val message: String, val position: Position) {
-    override fun toString(): String = "${position.line}:${position.column} $message"
+    override fun toString(): String =
+        if (position != Position.unknown()) "${position.line}:${position.column} $message"
+        else message
 }
 
 fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
@@ -32,16 +34,26 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
                 val signature = env.methodSignatureBindings[node.name]
                 if (signature != null) {
                     var hasErrors = false
-                    for ((idx, arg) in signature.argList.withIndex()) {
-                        val exprType = check(node.argList[idx])
-                        if (exprType != arg.type) {
-                            hasErrors = true
-                            errorList.add(
-                                SemanticErrorMessage(
-                                    "type of ${idx + 1}th actual param doesn't match type of formal param \"${arg.name}\" of method \"${node.name}\"",
-                                    node.pos
-                                )
+                    if (signature.argList.size != node.argList.size) {
+                        hasErrors = true
+                        errorList.add(
+                            SemanticErrorMessage(
+                                "wrong no. of arguments - expected ${signature.argList.size}, got ${node.argList.size}",
+                                node.pos
                             )
+                        )
+                    } else {
+                        for ((idx, arg) in signature.argList.withIndex()) {
+                            val exprType = check(node.argList[idx])
+                            if (exprType != arg.type) {
+                                hasErrors = true
+                                errorList.add(
+                                    SemanticErrorMessage(
+                                        "type of ${idx + 1}th actual param doesn't match type of formal param \"${arg.name}\" of method \"${node.name}\"",
+                                        node.pos
+                                    )
+                                )
+                            }
                         }
                     }
                     if (hasErrors) Type.ERROR else signature.returnType
@@ -69,7 +81,7 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
                                 else {
                                     errorList.add(
                                         SemanticErrorMessage(
-                                            "expression on both sides of ${node.op} must be integer",
+                                            "operands to ${node.op} must be integer",
                                             node.pos
                                         )
                                     )
@@ -80,7 +92,7 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
                                 else {
                                     errorList.add(
                                         SemanticErrorMessage(
-                                            "expression on both sides of ${node.op} must be integer",
+                                            "operands to ${node.op} must be integer",
                                             node.pos
                                         )
                                     )
@@ -91,7 +103,7 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
                                 else {
                                     errorList.add(
                                         SemanticErrorMessage(
-                                            "expression on both sides of ${node.op} must be of same type",
+                                            "operands to ${node.op} must be of same type",
                                             node.pos
                                         )
                                     )
@@ -102,7 +114,7 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
                                 else {
                                     errorList.add(
                                         SemanticErrorMessage(
-                                            "expression on both sides of ${node.op} must be boolean",
+                                            "operands to ${node.op} must be boolean",
                                             node.pos
                                         )
                                     )
@@ -224,15 +236,22 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
             is IRArrayFieldDeclaration -> {
                 val present =
                     env.arrayFieldBindings.addNoOverwrite(node.name, ArrayFieldSignature(node.type, node.size))
-                if (present) {
-                    errorList.add(
-                        SemanticErrorMessage(
-                            "${node.name} declared more than once in the same scope", node.pos
+                when {
+                    present -> {
+                        errorList.add(
+                            SemanticErrorMessage(
+                                "${node.name} declared more than once in the same scope", node.pos
+                            )
                         )
-                    )
-                    Type.ERROR
-                } else {
-                    Type.VOID
+                        Type.ERROR
+                    }
+                    node.size <= 0 -> {
+                        errorList.add(SemanticErrorMessage("array size must be positive", node.pos))
+                        Type.ERROR
+                    }
+                    else -> {
+                        Type.VOID
+                    }
                 }
             }
             is IRMethodDeclaration -> {
@@ -325,7 +344,10 @@ fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
                     errorList.add(SemanticErrorMessage("end expr of loop must be of type int", node.pos))
                 }
                 env.inLoop = true
+                env.enterBlock()
+                env.addVariableBinding(node.loopVar, Type.INT)
                 if (check(node.body) == Type.ERROR) hasErrors = true
+                env.leaveBlock()
                 if (hasErrors) Type.ERROR else Type.VOID
             }
             is IRReturnStatement -> {

@@ -1,10 +1,10 @@
 package deep.decaf.ir
 
 fun <T> MutableMap<String, T>.addNoOverwrite(key: String, data: T): Boolean {
-    return if (key in this) false
+    return if (key in this) true
     else {
         this[key] = data
-        true
+        false
     }
 }
 
@@ -23,7 +23,7 @@ class Env {
     var inLoop = false
     var enclosingMethodName = ""
 
-    private val blockBindings = mutableListOf<BlockEnv>()
+    private val blockBindings = mutableListOf(BlockEnv())
 
     fun enterBlock() {
         blockBindings.add(BlockEnv())

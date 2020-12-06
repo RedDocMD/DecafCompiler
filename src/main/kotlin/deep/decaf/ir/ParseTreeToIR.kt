@@ -159,10 +159,10 @@ class ParseTreeToIR : DecafBaseVisitor<IR>() {
         return if (ctx != null) {
             val position = positionOfContext(ctx)
             val callOutName = ctx.STRING().text
-            val callOutList = ctx.callout_list().callout_arg()
+            val callOutList = ctx.callout_list()
             val callOutArgs = mutableListOf<CallOutArg>()
             if (callOutList != null) {
-                callOutArgs.addAll(callOutList.map {
+                callOutArgs.addAll(callOutList.callout_arg().map {
                     if (it.STRING() != null) StringCallOutArg(it.STRING().text)
                     else ExprCallOutArg(visit(it.expr()) as IRExpr)
                 })

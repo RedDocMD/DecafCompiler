@@ -221,9 +221,9 @@ fun irToString(irNode: IR, noOfTabs: Int = 0): String {
         }
         is IRDirectAssignStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" = ")
             .append(irToString(irNode.expr, noOfTabs)).append("\n")
-        is IRIncrementStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" = ")
+        is IRIncrementStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" += ")
             .append(irToString(irNode.expr, noOfTabs)).append("\n")
-        is IRDecrementStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" = ")
+        is IRDecrementStatement -> output.append(tabPref).append(irToString(irNode.location, noOfTabs)).append(" -= ")
             .append(irToString(irNode.expr, noOfTabs)).append("\n")
         is IRBreakStatement -> output.append(tabPref).append("break").append("\n")
         is IRContinueStatement -> output.append(tabPref).append("continue").append("\n")
