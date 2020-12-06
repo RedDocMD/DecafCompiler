@@ -1,4 +1,4 @@
-package deep.decaf
+package deep.decaf.tester
 
 import deep.decaf.parser.*
 import org.antlr.v4.runtime.*
