@@ -20,6 +20,9 @@ class Env {
     val arrayFieldBindings = mutableMapOf<String, ArrayFieldSignature>()
     val methodSignatureBindings = mutableMapOf<String, MethodSignature>()
 
+    var inLoop = false
+    var enclosingMethodName = ""
+
     private val blockBindings = mutableListOf<BlockEnv>()
 
     fun enterBlock() {

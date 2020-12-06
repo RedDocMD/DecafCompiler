@@ -65,25 +65,45 @@ fun checkSemantics(program: IRProgram) {
                             BinOp.ADD, BinOp.SUBTRACT, BinOp.MULTIPLY, BinOp.DIVIDE, BinOp.REMAINDER ->
                                 if (leftType == Type.INT && rightType == Type.INT) Type.INT
                                 else {
-                                    errorList.add(SemanticErrorMessage("expression on both sides of ${node.op} must be integer", node.pos))
+                                    errorList.add(
+                                        SemanticErrorMessage(
+                                            "expression on both sides of ${node.op} must be integer",
+                                            node.pos
+                                        )
+                                    )
                                     Type.ERROR
                                 }
                             BinOp.LESS, BinOp.MORE, BinOp.LESS_OR_EQ, BinOp.MORE_OR_EQ ->
                                 if (leftType == Type.INT && rightType == Type.INT) Type.BOOL
                                 else {
-                                    errorList.add(SemanticErrorMessage("expression on both sides of ${node.op} must be integer", node.pos))
+                                    errorList.add(
+                                        SemanticErrorMessage(
+                                            "expression on both sides of ${node.op} must be integer",
+                                            node.pos
+                                        )
+                                    )
                                     Type.ERROR
                                 }
                             BinOp.EQ, BinOp.NOT_EQ ->
                                 if (leftType == rightType) Type.BOOL
                                 else {
-                                    errorList.add(SemanticErrorMessage("expression on both sides of ${node.op} must be of same type", node.pos))
+                                    errorList.add(
+                                        SemanticErrorMessage(
+                                            "expression on both sides of ${node.op} must be of same type",
+                                            node.pos
+                                        )
+                                    )
                                     Type.ERROR
                                 }
                             BinOp.OR, BinOp.AND ->
                                 if (leftType == Type.BOOL && rightType == Type.BOOL) Type.BOOL
                                 else {
-                                    errorList.add(SemanticErrorMessage("expression on both sides of ${node.op} must be boolean", node.pos))
+                                    errorList.add(
+                                        SemanticErrorMessage(
+                                            "expression on both sides of ${node.op} must be boolean",
+                                            node.pos
+                                        )
+                                    )
                                     Type.ERROR
                                 }
                         }
@@ -96,7 +116,12 @@ fun checkSemantics(program: IRProgram) {
                         Type.ERROR
                     }
                     Type.VOID -> {
-                        errorList.add(SemanticErrorMessage("cannot apply ${node.op} to expression of type void", node.pos))
+                        errorList.add(
+                            SemanticErrorMessage(
+                                "cannot apply ${node.op} to expression of type void",
+                                node.pos
+                            )
+                        )
                         Type.ERROR
                     }
                     else -> {
@@ -104,14 +129,24 @@ fun checkSemantics(program: IRProgram) {
                             UnaryOp.MINUS -> {
                                 if (type == Type.INT) Type.INT
                                 else {
-                                    errorList.add(SemanticErrorMessage("cannot apply ${node.op} to expression of type boolean", node.pos))
+                                    errorList.add(
+                                        SemanticErrorMessage(
+                                            "cannot apply ${node.op} to expression of type boolean",
+                                            node.pos
+                                        )
+                                    )
                                     Type.ERROR
                                 }
                             }
                             UnaryOp.NOT -> {
                                 if (type == Type.BOOL) Type.BOOL
                                 else {
-                                    errorList.add(SemanticErrorMessage("cannot apply ${node.op} to expression of type int", node.pos))
+                                    errorList.add(
+                                        SemanticErrorMessage(
+                                            "cannot apply ${node.op} to expression of type int",
+                                            node.pos
+                                        )
+                                    )
                                     Type.ERROR
                                 }
                             }
@@ -143,11 +178,85 @@ fun checkSemantics(program: IRProgram) {
                     Type.ERROR
                 }
             }
-            is IRBlock -> TODO()
-            is IRVarDeclaration -> TODO()
-            is IRRegularFieldDeclaration -> TODO()
-            is IRArrayFieldDeclaration -> TODO()
-            is IRMethodDeclaration -> TODO()
+            is IRBlock -> {
+                env.enterBlock()
+                var hasErrors = false
+                node.fieldDeclarations.forEach {
+                    val type = check(it)
+                    if (type == Type.ERROR) hasErrors = true
+                }
+                var type = Type.VOID
+                node.statements.forEach {
+                    type = check(it)
+                    if (type == Type.ERROR) hasErrors = true
+                }
+                env.leaveBlock()
+                if (hasErrors) Type.ERROR else type
+            }
+            is IRVarDeclaration -> {
+                val present = env.addVariableBinding(node.name, node.type)
+                if (present) {
+                    errorList.add(
+                        SemanticErrorMessage(
+                            "${node.name} declared more than once in the same scope", node.pos
+                        )
+                    )
+                    Type.ERROR
+                } else {
+                    Type.VOID
+                }
+            }
+            is IRRegularFieldDeclaration -> {
+                val present = env.addRegularFieldBinding(node.name, node.type)
+                if (present) {
+                    errorList.add(
+                        SemanticErrorMessage(
+                            "${node.name} declared more than once in the same scope", node.pos
+                        )
+                    )
+                    Type.ERROR
+                } else {
+                    Type.VOID
+                }
+            }
+            is IRArrayFieldDeclaration -> {
+                val present =
+                    env.arrayFieldBindings.addNoOverwrite(node.name, ArrayFieldSignature(node.type, node.size))
+                if (present) {
+                    errorList.add(
+                        SemanticErrorMessage(
+                            "${node.name} declared more than once in the same scope", node.pos
+                        )
+                    )
+                    Type.ERROR
+                } else {
+                    Type.VOID
+                }
+            }
+            is IRMethodDeclaration -> {
+                val present =
+                    env.methodSignatureBindings.addNoOverwrite(node.name, MethodSignature(node.type, node.argList))
+                if (present) {
+                    errorList.add(
+                        SemanticErrorMessage(
+                            "${node.name} declared more than once in the same scope", node.pos
+                        )
+                    )
+                    Type.ERROR
+                } else {
+                    if (node.name == "main") {
+                        mainPresent = true
+                    }
+                    val tmp = env.enclosingMethodName
+                    env.enclosingMethodName = node.name
+                    val retType = check(node.block)
+                    env.enclosingMethodName = tmp
+                    if (retType == Type.VOID && node.type != Type.VOID) {
+                        errorList.add(SemanticErrorMessage("expected ${node.name} to return ${node.type}", node.pos))
+                        Type.ERROR
+                    } else retType
+                }
+            }
             is IRDirectAssignStatement -> TODO()
             is IRIncrementStatement -> TODO()
             is IRDecrementStatement -> TODO()
