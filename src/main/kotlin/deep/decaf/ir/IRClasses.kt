@@ -4,10 +4,23 @@ enum class Type {
     INT,
     BOOL,
     VOID,
-    ERROR
+    ERROR;
+
+    override fun toString(): String {
+        return when (this) {
+            INT -> "int"
+            BOOL -> "bool"
+            VOID -> "void"
+            ERROR -> "<error>"
+        }
+    }
 }
 
-data class Position(val line: Int, val column: Int)
+data class Position(val line: Int, val column: Int) {
+    companion object {
+        fun unknown(): Position = Position(-1, -1)
+    }
+}
 
 sealed class IR
 
@@ -40,14 +53,39 @@ enum class BinOp {
     EQ,
     NOT_EQ,
     AND,
-    OR
+    OR;
+
+    override fun toString(): String {
+        return when (this) {
+            ADD -> "+"
+            SUBTRACT -> "-"
+            MULTIPLY -> "*"
+            DIVIDE -> "/"
+            REMAINDER -> "%"
+            LESS -> "<"
+            MORE -> ">"
+            LESS_OR_EQ -> "<="
+            MORE_OR_EQ -> ">="
+            EQ -> "=="
+            NOT_EQ -> "!="
+            AND -> "&&"
+            OR -> "||"
+        }
+    }
 }
 
 class IRUnaryOpExpr(val expr: IRExpr, val op: UnaryOp, pos: Position) : IRExpr(pos)
 
 enum class UnaryOp {
     MINUS,
-    NOT
+    NOT;
+
+    override fun toString(): String {
+        return when (this) {
+            MINUS -> "-"
+            NOT -> "!"
+        }
+    }
 }
 
 sealed class IRLocation(val name: String, val pos: Position) : IR()
@@ -137,29 +175,12 @@ fun irToString(irNode: IR, noOfTabs: Int = 0): String {
         is IRBinOpExpr -> {
             val leftExpr = irToString(irNode.left, noOfTabs)
             val rightExpr = irToString(irNode.right, noOfTabs)
-            val op = when (irNode.op) {
-                BinOp.ADD -> "+"
-                BinOp.SUBTRACT -> "-"
-                BinOp.MULTIPLY -> "*"
-                BinOp.DIVIDE -> "/"
-                BinOp.REMAINDER -> "%"
-                BinOp.LESS -> "<"
-                BinOp.MORE -> ">"
-                BinOp.LESS_OR_EQ -> "<="
-                BinOp.MORE_OR_EQ -> ">="
-                BinOp.EQ -> "=="
-                BinOp.NOT_EQ -> "!="
-                BinOp.AND -> "&&"
-                BinOp.OR -> "||"
-            }
+            val op = irNode.op.toString()
             output.append("($leftExpr $op $rightExpr)")
         }
         is IRUnaryOpExpr -> {
             val expr = irToString(irNode.expr, noOfTabs)
-            val op = when (irNode.op) {
-                UnaryOp.NOT -> '!'
-                UnaryOp.MINUS -> '-'
-            }
+            val op = irNode.op.toString()
             output.append("$op $expr")
         }
         is IRIDLocation -> output.append(irNode.name)
@@ -174,32 +195,19 @@ fun irToString(irNode: IR, noOfTabs: Int = 0): String {
             }
         }
         is IRVarDeclaration -> {
-            val type = when (irNode.type) {
-                Type.BOOL -> "bool"
-                else -> "int"
-            }
+            val type = irNode.type.toString()
             output.append(tabPref).append("$type ${irNode.name}").append("\n")
         }
         is IRRegularFieldDeclaration -> {
-            val type = when (irNode.type) {
-                Type.BOOL -> "bool"
-                else -> "int"
-            }
+            val type = irNode.type.toString()
             output.append(tabPref).append("$type ${irNode.name}").append("\n")
         }
         is IRArrayFieldDeclaration -> {
-            val type = when (irNode.type) {
-                Type.BOOL -> "bool"
-                else -> "int"
-            }
+            val type = irNode.type.toString()
             output.append(tabPref).append("$type ${irNode.name}[${irNode.size}]").append("\n")
         }
         is IRMethodDeclaration -> {
-            val returnType = when (irNode.type) {
-                Type.BOOL -> "bool"
-                Type.INT -> "int"
-                else -> "void"
-            }
+            val returnType = irNode.type.toString()
             val argStrings = irNode.argList.map {
                 val type = when (it.type) {
                     Type.BOOL -> "bool"
@@ -250,7 +258,7 @@ fun irToString(irNode: IR, noOfTabs: Int = 0): String {
         is IRProgram -> {
             output.append(tabPref).append("class ${irNode.name}").append("\n")
             for (fieldDeclaration in irNode.fieldDeclarations) {
-               output.append(irToString(fieldDeclaration, noOfTabs + 1))
+                output.append(irToString(fieldDeclaration, noOfTabs + 1))
             }
             for (methodDeclaration in irNode.methodDeclarations) {
                 output.append(irToString(methodDeclaration, noOfTabs + 1))
