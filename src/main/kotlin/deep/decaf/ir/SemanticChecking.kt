@@ -1,8 +1,10 @@
 package deep.decaf.ir
 
-data class SemanticErrorMessage(val message: String, val position: Position)
+data class SemanticErrorMessage(val message: String, val position: Position) {
+    override fun toString(): String = "${position.line}:${position.column} $message"
+}
 
-fun checkSemantics(program: IRProgram) {
+fun checkSemantics(program: IRProgram): List<SemanticErrorMessage> {
     val errorList = mutableListOf<SemanticErrorMessage>()
     var mainPresent = false
     val env = Env()
@@ -249,7 +251,10 @@ fun checkSemantics(program: IRProgram) {
                     }
                     val tmp = env.enclosingMethodName
                     env.enclosingMethodName = node.name
+                    env.enterBlock()
+                    node.argList.forEach { env.addVariableBinding(it.name, it.type) }
                     val retType = check(node.block)
+                    env.leaveBlock()
                     env.enclosingMethodName = tmp
                     if (retType == Type.VOID && node.type != Type.VOID) {
                         errorList.add(SemanticErrorMessage("expected ${node.name} to return ${node.type}", node.pos))
@@ -257,17 +262,94 @@ fun checkSemantics(program: IRProgram) {
                     } else retType
                 }
             }
-            is IRDirectAssignStatement -> TODO()
-            is IRIncrementStatement -> TODO()
-            is IRDecrementStatement -> TODO()
-            is IRBreakStatement -> TODO()
-            is IRContinueStatement -> TODO()
-            is IRIfStatement -> TODO()
-            is IRForStatement -> TODO()
-            is IRReturnStatement -> TODO()
-            is IRInvokeStatement -> TODO()
-            is IRBlockStatement -> TODO()
-            IRNone -> TODO()
+            is IRDirectAssignStatement -> {
+                val locationType = check(node.location)
+                val exprType = check(node.expr)
+                if (exprType != Type.ERROR && locationType != Type.ERROR && exprType != locationType) {
+                    errorList.add(
+                        SemanticErrorMessage(
+                            "value of type $exprType cannot be assigned to $locationType",
+                            node.pos
+                        )
+                    )
+                    Type.ERROR
+                } else Type.VOID
+            }
+            is IRIncrementStatement -> {
+                val locationType = check(node.location)
+                val exprType = check(node.expr)
+                if (exprType != Type.INT && locationType != Type.INT) {
+                    errorList.add(SemanticErrorMessage("cannot increment $locationType by $exprType", node.pos))
+                    Type.ERROR
+                } else Type.VOID
+            }
+            is IRDecrementStatement -> {
+                val locationType = check(node.location)
+                val exprType = check(node.expr)
+                if (exprType != Type.INT && locationType != Type.INT) {
+                    errorList.add(SemanticErrorMessage("cannot decrement $locationType by $exprType", node.pos))
+                    Type.ERROR
+                } else Type.VOID
+            }
+            is IRBreakStatement -> {
+                if (!env.inLoop) {
+                    errorList.add(SemanticErrorMessage("cannot break outside a loop", node.pos))
+                    Type.ERROR
+                } else Type.VOID
+            }
+            is IRContinueStatement -> {
+                if (!env.inLoop) {
+                    errorList.add(SemanticErrorMessage("cannot continue outside a loop", node.pos))
+                    Type.ERROR
+                } else Type.VOID
+            }
+            is IRIfStatement -> {
+                val conditionType = check(node.condition)
+                var hasErrors = false
+                if (conditionType != Type.BOOL) {
+                    hasErrors = true
+                    errorList.add(SemanticErrorMessage("condition must be of boolean type", node.pos))
+                }
+                val ifBlockType = check(node.ifBlock)
+                val elseBlockType = if (node.elseBlock != null) check(node.elseBlock) else Type.VOID
+                if (ifBlockType != Type.ERROR && elseBlockType != Type.ERROR && hasErrors) Type.VOID else Type.ERROR
+            }
+            is IRForStatement -> {
+                var hasErrors = false
+                if (check(node.initExpr) != Type.INT) {
+                    hasErrors = true
+                    errorList.add(SemanticErrorMessage("init expr of loop must be of type int", node.pos))
+                }
+                if (check(node.condition) != Type.INT) {
+                    hasErrors = true
+                    errorList.add(SemanticErrorMessage("end expr of loop must be of type int", node.pos))
+                }
+                env.inLoop = true
+                if (check(node.body) == Type.ERROR) hasErrors = true
+                if (hasErrors) Type.ERROR else Type.VOID
+            }
+            is IRReturnStatement -> {
+                val signature = env.methodSignatureBindings[env.enclosingMethodName]!!
+                val type = if (node.expr != null) check(node.expr) else Type.VOID
+                if (type != signature.returnType) {
+                    errorList.add(
+                        SemanticErrorMessage(
+                            "${env.enclosingMethodName} requires to return ${signature.returnType}",
+                            node.pos
+                        )
+                    )
+                    Type.ERROR
+                } else type
+            }
+            is IRInvokeStatement -> check(node.expr)
+            is IRBlockStatement -> check(node.block)
+            IRNone -> Type.ERROR
         }
     }
+
+    check(program)
+    if (!mainPresent)
+        errorList.add(SemanticErrorMessage("main method not found", Position.unknown()))
+
+    return errorList
 }
