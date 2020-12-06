@@ -8,11 +8,6 @@ fun <T> MutableMap<String, T>.addNoOverwrite(key: String, data: T): Boolean {
     }
 }
 
-fun <T> MutableMap<String, T>.getNoNull(key: String): T {
-    if (key !in this) throw java.lang.IllegalArgumentException("binding for $key not present")
-    else return this[key]!!
-}
-
 data class MethodSignature(val returnType: Type, val argList: List<Arg>)
 data class ArrayFieldSignature(val type: Type, val size: Int)
 
@@ -43,10 +38,10 @@ class Env {
         return regularFieldBindings.addNoOverwrite(name, type)
     }
 
-    fun getNonArrayVarBinding(name: String): Type {
+    fun getNonArrayVarBinding(name: String): Type? {
         for (blockEnv in blockBindings.reversed()) {
             if (name in blockEnv.bindings) return blockEnv.bindings[name]!!
         }
-        return regularFieldBindings.getNoNull(name)
+        return regularFieldBindings[name]
     }
 }
