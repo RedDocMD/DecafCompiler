@@ -16,7 +16,7 @@ data class Register(val name: String, val offset: Offset?) : Location() {
     }
 }
 
-object Unknown : Location()
+data class Label(val label: String) : Location()
 data class MemLoc(val reg: Register, val offset: NumberOffset) : Location()
 
 enum class AsmArithOp {
