@@ -42,7 +42,7 @@ class DeclarationNode(
 ) : SingleInput, SingleOutput
 
 class NoOpNode(
-    var prevs: List<CFGNode>,
+    val prevs: MutableList<CFGNode>,
     override var next: CFGNode?
 ) : SingleOutput
 
@@ -67,7 +67,7 @@ fun constructCFG(statement: IRStatement): CFG {
             val ifCFG = constructCFG(statement.ifBlock)
             val elseCFG = constructCFG(statement.elseBlock)
             if (ifCFG != null && elseCFG != null) {
-                val noOp = NoOpNode(listOf(ifCFG.exit, elseCFG.exit), null)
+                val noOp = NoOpNode(mutableListOf(ifCFG.exit, elseCFG.exit), null)
                 ifCFG.exit.next = noOp
                 elseCFG.exit.next = noOp
                 val branchNode = ConditionalNode(
@@ -78,26 +78,62 @@ fun constructCFG(statement: IRStatement): CFG {
                 val branchNode = ConditionalNode(
                     null, ifCFG.entry, null, statement.condition
                 )
-                val noOp = NoOpNode(listOf(ifCFG.exit, branchNode), null)
+                val noOp = NoOpNode(mutableListOf(ifCFG.exit, branchNode), null)
                 branchNode.falsePath = noOp
                 CFG(branchNode, noOp)
             } else if (elseCFG != null) {
                 val branchNode = ConditionalNode(
                     null, null, elseCFG.entry, statement.condition
                 )
-                val noOp = NoOpNode(listOf(branchNode, elseCFG.exit), null)
+                val noOp = NoOpNode(mutableListOf(branchNode, elseCFG.exit), null)
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
             } else {
                 val branchNode = ConditionalNode(
-                    null, null, null, statement.condition)
-                val noOp = NoOpNode(listOf(branchNode, branchNode), null)
+                    null, null, null, statement.condition
+                )
+                val noOp = NoOpNode(mutableListOf(branchNode, branchNode), null)
                 branchNode.falsePath = noOp
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
             }
         }
-        is IRForStatement -> TODO()
+        is IRForStatement -> {
+            val declaration = IRVarDeclaration(Type.INT, statement.loopVar, statement.pos)
+            val loopVar = IRIDLocation(statement.loopVar, statement.pos)
+            val init = IRDirectAssignStatement(loopVar, statement.initExpr, statement.pos)
+            val termination = IRBinOpExpr(
+                IRLocationExpression(loopVar, statement.pos),
+                statement.condition, BinOp.NOT_EQ, statement.pos
+            )
+            val declarationNode = DeclarationNode(null, null,  declaration)
+            val initNode = RegularNode(null, null)
+            initNode.statements.add(init)
+            val conditionNode = ConditionalNode(null, null, null, termination)
+            val noOp = NoOpNode(mutableListOf(), null)
+            val blockCFG = constructCFG(statement.body)
+
+            declarationNode.next = initNode
+            initNode.prev = declarationNode
+            initNode.next = noOp
+            noOp.prevs.add(initNode)
+            noOp.next = conditionNode
+            conditionNode.prev = noOp
+            if (blockCFG != null) {
+                conditionNode.truePath = blockCFG.entry
+                blockCFG.entry.prev = conditionNode
+                blockCFG.exit.next = noOp
+                noOp.prevs.add(blockCFG.exit)
+            } else {
+                conditionNode.truePath = noOp
+                noOp.prevs.add(conditionNode)
+            }
+
+            val exitNoOp = NoOpNode(mutableListOf(conditionNode), null)
+            conditionNode.falsePath = exitNoOp
+
+            CFG(declarationNode, exitNoOp)
+        }
         is IRReturnStatement -> TODO()
         is IRInvokeStatement -> TODO()
         is IRBlockStatement -> TODO()
