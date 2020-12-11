@@ -91,6 +91,7 @@ fun constructCFG(statement: IRStatement): CFG {
                     null, ifCFG.entry, null, statement.condition
                 )
                 val noOp = NoOpNode(mutableListOf(ifCFG.exit, branchNode), null)
+                ifCFG.exit.next = noOp
                 branchNode.falsePath = noOp
                 CFG(branchNode, noOp)
             } else if (elseCFG != null) {
@@ -98,6 +99,7 @@ fun constructCFG(statement: IRStatement): CFG {
                     null, null, elseCFG.entry, statement.condition
                 )
                 val noOp = NoOpNode(mutableListOf(branchNode, elseCFG.exit), null)
+                elseCFG.exit.next = noOp
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
             } else {
@@ -221,24 +223,26 @@ fun dotFileFromCFG(cfg: CFG): String {
     fun visit(node: CFGNode) {
         val isDone = done[node.uuid] ?: false
         if (!isDone) {
-            val label = cfgNodeLabel(node)
-            nodeProps.add("${node.uuid}[label=$label]")
+            var label = cfgNodeLabel(node)
+            if (label.last() == '\n') label = label.removeRange(label.length - 1, label.length)
+            label = label.replace("\"", "\\\"")
+            nodeProps.add("\"${node.uuid}\" [label=\"$label\"];")
             done[node.uuid] = true
             if (node is SingleOutput) {
                 val next = node.next
                 if (next != null) {
-                    links.add("${node.uuid} -> ${next.uuid}")
+                    links.add("\"${node.uuid}\" -> \"${next.uuid}\";")
                     visit(next)
                 }
             } else if (node is ConditionalNode) {
                 val truePath = node.truePath
                 val falsePath = node.falsePath
                 if (truePath != null) {
-                    links.add("${node.uuid} -> ${truePath.uuid}")
+                    links.add("\"${node.uuid}\" -> \"${truePath.uuid}\";")
                     visit(truePath)
                 }
                 if (falsePath != null) {
-                    links.add("${node.uuid} -> ${falsePath.uuid}")
+                    links.add("\"${node.uuid}\" -> \"${falsePath.uuid}\";")
                     visit(falsePath)
                 }
             }
