@@ -1,8 +1,11 @@
 package deep.decaf.low
 
 import deep.decaf.ir.*
+import java.util.*
 
-interface CFGNode
+interface CFGNode {
+    val uuid: String
+}
 
 interface SingleInput : CFGNode {
     var prev: CFGNode?
@@ -17,6 +20,7 @@ class RegularNode(
     override var next: CFGNode?
 ) : SingleInput, SingleOutput {
     val statements = mutableListOf<IRStatement>()
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
 }
 
 class ConditionalNode(
@@ -24,27 +28,35 @@ class ConditionalNode(
     var truePath: CFGNode?,
     var falsePath: CFGNode?,
     val condition: IRExpr
-) : SingleInput
+) : SingleInput {
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
+}
 
 sealed class JumpNodes(
     override var next: CFGNode?,
     override var prev: CFGNode?
-) : SingleInput, SingleOutput
+) : SingleInput, SingleOutput {
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
+}
 
 class BreakNode(next: CFGNode?, prev: CFGNode?) : JumpNodes(next, prev)
 class ContinueNode(next: CFGNode?, prev: CFGNode?) : JumpNodes(next, prev)
-class ReturnNode(next: CFGNode?, prev: CFGNode?) : JumpNodes(next, prev)
+class ReturnNode(next: CFGNode?, prev: CFGNode?, val expr: IRExpr?) : JumpNodes(next, prev)
 
 class DeclarationNode(
     override var next: CFGNode?,
     override var prev: CFGNode?,
     val declaration: IRMemberDeclaration
-) : SingleInput, SingleOutput
+) : SingleInput, SingleOutput {
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
+}
 
 class NoOpNode(
     val prevs: MutableList<CFGNode>,
     override var next: CFGNode?
-) : SingleOutput
+) : SingleOutput {
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
+}
 
 data class CFG(val entry: SingleInput, val exit: SingleOutput)
 
@@ -106,7 +118,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 IRLocationExpression(loopVar, statement.pos),
                 statement.condition, BinOp.NOT_EQ, statement.pos
             )
-            val declarationNode = DeclarationNode(null, null,  declaration)
+            val declarationNode = DeclarationNode(null, null, declaration)
             val initNode = RegularNode(null, null)
             initNode.statements.add(init)
             val conditionNode = ConditionalNode(null, null, null, termination)
@@ -135,7 +147,7 @@ fun constructCFG(statement: IRStatement): CFG {
             CFG(declarationNode, exitNoOp)
         }
         is IRReturnStatement -> {
-            val node = ReturnNode(null, null)
+            val node = ReturnNode(null, null, statement.expr)
             CFG(node, node)
         }
         is IRInvokeStatement -> {
@@ -188,3 +200,57 @@ fun constructCFG(block: IRBlock?): CFG? {
     }
 }
 
+private fun cfgNodeLabel(node: CFGNode): String {
+    return when (node) {
+        is RegularNode -> node.statements.joinToString("\n") { irToString(it) }
+        is ConditionalNode -> irToString(node.condition)
+        is BreakNode -> "break"
+        is ContinueNode -> "continue"
+        is ReturnNode -> "return" + if (node.expr != null) irToString(node.expr) else ""
+        is DeclarationNode -> irToString(node.declaration)
+        is NoOpNode -> "XX"
+        else -> throw IllegalArgumentException("I don't know this variant of node")
+    }
+}
+
+fun dotFileFromCFG(cfg: CFG): String {
+    val done = mutableMapOf<String, Boolean>()
+    val nodeProps = mutableListOf<String>()
+    val links = mutableListOf<String>()
+
+    fun visit(node: CFGNode) {
+        val isDone = done[node.uuid] ?: false
+        if (!isDone) {
+            val label = cfgNodeLabel(node)
+            nodeProps.add("${node.uuid}[label=$label]")
+            done[node.uuid] = true
+            if (node is SingleOutput) {
+                val next = node.next
+                if (next != null) {
+                    links.add("${node.uuid} -> ${next.uuid}")
+                    visit(next)
+                }
+            } else if (node is ConditionalNode) {
+                val truePath = node.truePath
+                val falsePath = node.falsePath
+                if (truePath != null) {
+                    links.add("${node.uuid} -> ${truePath.uuid}")
+                    visit(truePath)
+                }
+                if (falsePath != null) {
+                    links.add("${node.uuid} -> ${falsePath.uuid}")
+                    visit(falsePath)
+                }
+            }
+        }
+    }
+
+    visit(cfg.entry)
+
+    val lines = mutableListOf("digraph H {")
+    lines.addAll(links)
+    lines.addAll(nodeProps)
+    lines.add("}")
+
+    return lines.joinToString("\n")
+}

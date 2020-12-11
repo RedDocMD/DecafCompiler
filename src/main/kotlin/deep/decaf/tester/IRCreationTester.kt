@@ -5,7 +5,8 @@ import deep.decaf.parser.*
 import org.antlr.v4.runtime.*
 
 fun main(args: Array<String>) {
-    val filename = "/home/deep/work/compiler/provided1/parser/legal-18"
+//    val filename = "/home/deep/work/compiler/provided1/parser/legal-18"
+    val filename = "/home/deep/work/compiler/provided1/cond-expr.decaf"
     val lexer = DecafLexer(CharStreams.fromFileName(filename))
     val parser = DecafParser(CommonTokenStream(lexer))
     parser.removeErrorListeners()
