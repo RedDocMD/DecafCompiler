@@ -138,8 +138,14 @@ fun constructCFG(statement: IRStatement): CFG {
             val node = ReturnNode(null, null)
             CFG(node, node)
         }
-        is IRInvokeStatement -> TODO()
-        is IRBlockStatement -> TODO()
+        is IRInvokeStatement -> {
+            val node = RegularNode(null, null)
+            node.statements.add(statement)
+            CFG(node, node)
+        }
+        is IRBlockStatement -> {
+            constructCFG(statement.block)!!
+        }
     }
 }
 
