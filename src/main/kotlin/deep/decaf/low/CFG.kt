@@ -1,4 +1,4 @@
-package deep.decaf.low.amd64
+package deep.decaf.low
 
 import deep.decaf.ir.*
 
@@ -134,7 +134,10 @@ fun constructCFG(statement: IRStatement): CFG {
 
             CFG(declarationNode, exitNoOp)
         }
-        is IRReturnStatement -> TODO()
+        is IRReturnStatement -> {
+            val node = ReturnNode(null, null)
+            CFG(node, node)
+        }
         is IRInvokeStatement -> TODO()
         is IRBlockStatement -> TODO()
     }
@@ -175,9 +178,7 @@ fun constructCFG(block: IRBlock?): CFG? {
             }
             return CFG(entry, pt)
         }
-        else -> {
-            return null
-        }
+        else -> return null
     }
 }
 
