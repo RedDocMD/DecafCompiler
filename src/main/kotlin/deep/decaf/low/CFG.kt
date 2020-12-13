@@ -21,16 +21,47 @@ class RegularNode(
 ) : SingleInput, SingleOutput {
     val statements = mutableListOf<IRStatement>()
     override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as RegularNode
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
+
 }
 
 class ConditionalNode(
     override var prev: CFGNode?,
     var truePath: CFGNode?,
     var falsePath: CFGNode?,
-    val condition: IRExpr,
-    val type: ConditionalNodeType
+    var condition: IRExpr,
+    var type: ConditionalNodeType
 ) : SingleInput {
     override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ConditionalNode
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
 }
 
 sealed class ConditionalNodeType
@@ -42,6 +73,21 @@ sealed class JumpNodes(
     override var prev: CFGNode?
 ) : SingleInput, SingleOutput {
     override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as JumpNodes
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
 }
 
 class BreakNode(next: CFGNode?, prev: CFGNode?, val loopId: Int) : JumpNodes(next, prev)
@@ -54,6 +100,21 @@ class DeclarationNode(
     val declaration: IRMemberDeclaration
 ) : SingleInput, SingleOutput {
     override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as DeclarationNode
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
 }
 
 sealed class NoOpNode(
@@ -61,6 +122,21 @@ sealed class NoOpNode(
     override var next: CFGNode?
 ) : SingleOutput {
     override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as NoOpNode
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
 }
 
 class EntryNoOpNode(
@@ -116,39 +192,47 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
             val elseCFG = constructCFG(statement.elseBlock, info)
             if (ifCFG != null && elseCFG != null) {
                 val noOp = ExitNoOpNode(
-                    mutableListOf(ifCFG.exit, elseCFG.exit), null, IfElse)
+                    mutableListOf(ifCFG.exit, elseCFG.exit), null, IfElse
+                )
                 ifCFG.exit.next = noOp
                 elseCFG.exit.next = noOp
                 val branchNode = ConditionalNode(
                     null, ifCFG.entry, elseCFG.entry, statement.condition, IfElse
                 )
+                shortCircuit(branchNode)
                 CFG(branchNode, noOp)
             } else if (ifCFG != null) {
                 val branchNode = ConditionalNode(
                     null, ifCFG.entry, null, statement.condition, IfElse
                 )
                 val noOp = ExitNoOpNode(
-                    mutableListOf(ifCFG.exit, branchNode), null, IfElse)
+                    mutableListOf(ifCFG.exit, branchNode), null, IfElse
+                )
                 ifCFG.exit.next = noOp
                 branchNode.falsePath = noOp
+                shortCircuit(branchNode)
                 CFG(branchNode, noOp)
             } else if (elseCFG != null) {
                 val branchNode = ConditionalNode(
                     null, null, elseCFG.entry, statement.condition, IfElse
                 )
                 val noOp = ExitNoOpNode(
-                    mutableListOf(branchNode, elseCFG.exit), null, IfElse)
+                    mutableListOf(branchNode, elseCFG.exit), null, IfElse
+                )
                 elseCFG.exit.next = noOp
                 branchNode.truePath = noOp
+                shortCircuit(branchNode)
                 CFG(branchNode, noOp)
             } else {
                 val branchNode = ConditionalNode(
                     null, null, null, statement.condition, IfElse
                 )
                 val noOp = ExitNoOpNode(
-                    mutableListOf(branchNode, branchNode), null, IfElse)
+                    mutableListOf(branchNode, branchNode), null, IfElse
+                )
                 branchNode.falsePath = noOp
                 branchNode.truePath = noOp
+                shortCircuit(branchNode)
                 CFG(branchNode, noOp)
             }
         }
@@ -165,7 +249,8 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
             initNode.statements.add(init)
             info.enterLoop()
             val conditionNode = ConditionalNode(
-                null, null, null, termination, For(info.loopId()))
+                null, null, null, termination, For(info.loopId())
+            )
             val noOp = EntryNoOpNode(mutableListOf(), null, For(info.loopId()))
             val blockCFG = constructCFG(statement.body, info)
 
@@ -234,6 +319,7 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
             }
             dfs(declarationNode)
             info.leaveLoop()
+            shortCircuit(conditionNode)
 
             CFG(declarationNode, exitNoOp)
         }
@@ -248,6 +334,85 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
         }
         is IRBlockStatement -> {
             constructCFG(statement.block, info)!!
+        }
+    }
+}
+
+private fun shortCircuit(node: ConditionalNode) {
+    val expr = node.condition
+    if (expr is IRBinOpExpr) {
+        if (expr.op == BinOp.AND) {
+            val rightNode = ConditionalNode(
+                null, null, null, expr.right, node.type
+            )
+
+            rightNode.truePath = node.truePath
+            if (node.truePath != null && node.truePath is SingleInput) {
+                (node.truePath!! as SingleInput).prev = rightNode
+            } else if (node.truePath != null && node.truePath is NoOpNode) {
+                val prevs = (node.truePath!! as NoOpNode).prevs
+                prevs.remove(node)
+                prevs.add(rightNode)
+            }
+
+            if (node.falsePath != null && node.falsePath is NoOpNode) {
+                val fNode = node.falsePath!! as NoOpNode
+                fNode.prevs.add(rightNode)
+                rightNode.falsePath = fNode
+            } else {
+                val noOp = ExitNoOpNode(
+                    mutableListOf(rightNode, node), node.falsePath, IfElse
+                )
+                if (node.falsePath != null) {
+                    (node.falsePath!! as SingleInput).prev = noOp
+                }
+                node.falsePath = noOp
+                rightNode.falsePath = noOp
+            }
+
+            node.truePath = rightNode
+            rightNode.prev = node
+
+            node.condition = expr.left
+
+            shortCircuit(node)
+            shortCircuit(rightNode)
+        } else if (expr.op == BinOp.OR) {
+            val rightNode = ConditionalNode(
+                null, null, null, expr.right, node.type
+            )
+
+            rightNode.falsePath = node.falsePath
+            if (node.falsePath != null && node.falsePath is SingleInput) {
+                (node.falsePath!! as SingleInput).prev = rightNode
+            } else if (node.falsePath != null && node.falsePath is NoOpNode) {
+                val prevs = (node.falsePath!! as NoOpNode).prevs
+                prevs.remove(node)
+                prevs.add(rightNode)
+            }
+
+            if (node.truePath != null && node.truePath is NoOpNode) {
+                val tNode = node.truePath!! as NoOpNode
+                tNode.prevs.add(rightNode)
+                rightNode.truePath = tNode
+            } else {
+                val noOp = ExitNoOpNode(
+                    mutableListOf(rightNode, node), node.truePath, IfElse
+                )
+                if (node.truePath != null) {
+                    (node.truePath!! as SingleInput).prev = noOp
+                }
+                node.truePath = noOp
+                rightNode.truePath = noOp
+            }
+
+            node.falsePath = rightNode
+            rightNode.prev = node
+
+            node.condition = expr.left
+
+            shortCircuit(node)
+            shortCircuit(rightNode)
         }
     }
 }
