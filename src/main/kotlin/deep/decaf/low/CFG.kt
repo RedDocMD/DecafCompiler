@@ -51,12 +51,22 @@ class DeclarationNode(
     override val uuid = UUID.randomUUID().toString().replace("-", "")
 }
 
-class NoOpNode(
+sealed class NoOpNode(
     val prevs: MutableList<CFGNode>,
     override var next: CFGNode?
 ) : SingleOutput {
     override val uuid = UUID.randomUUID().toString().replace("-", "")
 }
+
+class EntryNoOpNode(
+    prevs: MutableList<CFGNode>,
+    next: CFGNode?
+) : NoOpNode(prevs, next)
+
+class ExitNoOpNode(
+    prevs: MutableList<CFGNode>,
+    next: CFGNode?
+) : NoOpNode(prevs, next)
 
 data class CFG(val entry: SingleInput, val exit: SingleOutput)
 
@@ -79,7 +89,7 @@ fun constructCFG(statement: IRStatement): CFG {
             val ifCFG = constructCFG(statement.ifBlock)
             val elseCFG = constructCFG(statement.elseBlock)
             if (ifCFG != null && elseCFG != null) {
-                val noOp = NoOpNode(mutableListOf(ifCFG.exit, elseCFG.exit), null)
+                val noOp = ExitNoOpNode(mutableListOf(ifCFG.exit, elseCFG.exit), null)
                 ifCFG.exit.next = noOp
                 elseCFG.exit.next = noOp
                 val branchNode = ConditionalNode(
@@ -90,7 +100,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 val branchNode = ConditionalNode(
                     null, ifCFG.entry, null, statement.condition
                 )
-                val noOp = NoOpNode(mutableListOf(ifCFG.exit, branchNode), null)
+                val noOp = ExitNoOpNode(mutableListOf(ifCFG.exit, branchNode), null)
                 ifCFG.exit.next = noOp
                 branchNode.falsePath = noOp
                 CFG(branchNode, noOp)
@@ -98,7 +108,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 val branchNode = ConditionalNode(
                     null, null, elseCFG.entry, statement.condition
                 )
-                val noOp = NoOpNode(mutableListOf(branchNode, elseCFG.exit), null)
+                val noOp = ExitNoOpNode(mutableListOf(branchNode, elseCFG.exit), null)
                 elseCFG.exit.next = noOp
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
@@ -106,7 +116,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 val branchNode = ConditionalNode(
                     null, null, null, statement.condition
                 )
-                val noOp = NoOpNode(mutableListOf(branchNode, branchNode), null)
+                val noOp = ExitNoOpNode(mutableListOf(branchNode, branchNode), null)
                 branchNode.falsePath = noOp
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
@@ -124,7 +134,7 @@ fun constructCFG(statement: IRStatement): CFG {
             val initNode = RegularNode(null, null)
             initNode.statements.add(init)
             val conditionNode = ConditionalNode(null, null, null, termination)
-            val noOp = NoOpNode(mutableListOf(), null)
+            val noOp = EntryNoOpNode(mutableListOf(), null)
             val blockCFG = constructCFG(statement.body)
 
             declarationNode.next = initNode
@@ -143,7 +153,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 noOp.prevs.add(conditionNode)
             }
 
-            val exitNoOp = NoOpNode(mutableListOf(conditionNode), null)
+            val exitNoOp = ExitNoOpNode(mutableListOf(conditionNode), null)
             conditionNode.falsePath = exitNoOp
 
             CFG(declarationNode, exitNoOp)
@@ -210,7 +220,8 @@ private fun cfgNodeLabel(node: CFGNode): String {
         is ContinueNode -> "continue"
         is ReturnNode -> "return" + if (node.expr != null) irToString(node.expr) else ""
         is DeclarationNode -> irToString(node.declaration)
-        is NoOpNode -> "XX"
+        is EntryNoOpNode -> "Xin"
+        is ExitNoOpNode -> "Xout"
         else -> throw IllegalArgumentException("I don't know this variant of node")
     }
 }
@@ -226,7 +237,14 @@ fun dotFileFromCFG(cfg: CFG): String {
             var label = cfgNodeLabel(node)
             if (label.last() == '\n') label = label.removeRange(label.length - 1, label.length)
             label = label.replace("\"", "\\\"")
-            nodeProps.add("\"${node.uuid}\" [label=\"$label\"];")
+            val shape = when (node) {
+                is RegularNode, is DeclarationNode -> "box"
+                is ConditionalNode -> "diamond"
+                is BreakNode, is ContinueNode, is ReturnNode -> "parallelogram"
+                is NoOpNode -> "circle"
+                else -> throw IllegalArgumentException("I don't know this variant of node")
+            }
+            nodeProps.add("\"${node.uuid}\" [label=\"$label\",shape=$shape];")
             done[node.uuid] = true
             if (node is SingleOutput) {
                 val next = node.next
