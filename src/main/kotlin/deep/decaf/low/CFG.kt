@@ -187,6 +187,52 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
 
             val exitNoOp = ExitNoOpNode(mutableListOf(conditionNode), null, For(info.loopId()))
             conditionNode.falsePath = exitNoOp
+
+            // Re-wire the break and continue properly
+            val done = mutableMapOf<String, Boolean>()
+            fun dfs(node: CFGNode) {
+                val isDone = done[node.uuid] ?: false
+                if (!isDone) {
+                    if (node is BreakNode && node.loopId == info.loopId()) {
+                        val next = node.next
+                        node.next = exitNoOp
+                        exitNoOp.prevs.add(node)
+                        if (next != null) {
+                            if (next is SingleInput) {
+                                next.prev = null
+                            } else if (next is NoOpNode) {
+                                next.prevs.remove(node)
+                            }
+                        }
+                    }
+                    if (node is ContinueNode && node.loopId == info.loopId()) {
+                        val next = node.next
+                        node.next = noOp
+                        noOp.prevs.add(node)
+                        if (next != null) {
+                            if (next is SingleInput) {
+                                next.prev = null
+                            } else if (next is NoOpNode) {
+                                next.prevs.remove(node)
+                            }
+                        }
+                    }
+                    done[node.uuid] = true
+                    if (node is SingleOutput) {
+                        if (node.next != null) {
+                            dfs(node.next!!)
+                        }
+                    } else if (node is ConditionalNode) {
+                        if (node.truePath != null) {
+                            dfs(node.truePath!!)
+                        }
+                        if (node.falsePath != null) {
+                            dfs(node.falsePath!!)
+                        }
+                    }
+                }
+            }
+            dfs(declarationNode)
             info.leaveLoop()
 
             CFG(declarationNode, exitNoOp)
