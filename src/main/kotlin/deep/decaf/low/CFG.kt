@@ -65,12 +65,14 @@ sealed class NoOpNode(
 
 class EntryNoOpNode(
     prevs: MutableList<CFGNode>,
-    next: CFGNode?
+    next: CFGNode?,
+    type: For
 ) : NoOpNode(prevs, next)
 
 class ExitNoOpNode(
     prevs: MutableList<CFGNode>,
-    next: CFGNode?
+    next: CFGNode?,
+    type: ConditionalNodeType
 ) : NoOpNode(prevs, next)
 
 data class CFG(val entry: SingleInput, val exit: SingleOutput)
@@ -113,7 +115,8 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
             val ifCFG = constructCFG(statement.ifBlock, info)
             val elseCFG = constructCFG(statement.elseBlock, info)
             if (ifCFG != null && elseCFG != null) {
-                val noOp = ExitNoOpNode(mutableListOf(ifCFG.exit, elseCFG.exit), null)
+                val noOp = ExitNoOpNode(
+                    mutableListOf(ifCFG.exit, elseCFG.exit), null, IfElse)
                 ifCFG.exit.next = noOp
                 elseCFG.exit.next = noOp
                 val branchNode = ConditionalNode(
@@ -124,7 +127,8 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
                 val branchNode = ConditionalNode(
                     null, ifCFG.entry, null, statement.condition, IfElse
                 )
-                val noOp = ExitNoOpNode(mutableListOf(ifCFG.exit, branchNode), null)
+                val noOp = ExitNoOpNode(
+                    mutableListOf(ifCFG.exit, branchNode), null, IfElse)
                 ifCFG.exit.next = noOp
                 branchNode.falsePath = noOp
                 CFG(branchNode, noOp)
@@ -132,7 +136,8 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
                 val branchNode = ConditionalNode(
                     null, null, elseCFG.entry, statement.condition, IfElse
                 )
-                val noOp = ExitNoOpNode(mutableListOf(branchNode, elseCFG.exit), null)
+                val noOp = ExitNoOpNode(
+                    mutableListOf(branchNode, elseCFG.exit), null, IfElse)
                 elseCFG.exit.next = noOp
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
@@ -140,7 +145,8 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
                 val branchNode = ConditionalNode(
                     null, null, null, statement.condition, IfElse
                 )
-                val noOp = ExitNoOpNode(mutableListOf(branchNode, branchNode), null)
+                val noOp = ExitNoOpNode(
+                    mutableListOf(branchNode, branchNode), null, IfElse)
                 branchNode.falsePath = noOp
                 branchNode.truePath = noOp
                 CFG(branchNode, noOp)
@@ -160,7 +166,7 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
             info.enterLoop()
             val conditionNode = ConditionalNode(
                 null, null, null, termination, For(info.loopId()))
-            val noOp = EntryNoOpNode(mutableListOf(), null)
+            val noOp = EntryNoOpNode(mutableListOf(), null, For(info.loopId()))
             val blockCFG = constructCFG(statement.body, info)
 
             declarationNode.next = initNode
@@ -179,7 +185,7 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
                 noOp.prevs.add(conditionNode)
             }
 
-            val exitNoOp = ExitNoOpNode(mutableListOf(conditionNode), null)
+            val exitNoOp = ExitNoOpNode(mutableListOf(conditionNode), null, For(info.loopId()))
             conditionNode.falsePath = exitNoOp
             info.leaveLoop()
 
