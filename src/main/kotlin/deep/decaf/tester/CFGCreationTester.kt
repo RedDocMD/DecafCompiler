@@ -16,9 +16,10 @@ fun main(args: Array<String>) {
         val errors = checkSemantics(irTree)
         if (errors.isNotEmpty())
             throw RuntimeException("Invalid program")
+        val cfgCreationInfo = CFGCreationInfo()
         for (method in irTree.methodDeclarations) {
             if (method.name == "main") {
-                val cfg = constructCFG(method.block)
+                val cfg = constructCFG(method.block, cfgCreationInfo)
                 val dotString = dotFileFromCFG(cfg!!)
                 println(dotString)
                 val processBuilder = ProcessBuilder(

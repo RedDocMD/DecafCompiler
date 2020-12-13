@@ -27,10 +27,15 @@ class ConditionalNode(
     override var prev: CFGNode?,
     var truePath: CFGNode?,
     var falsePath: CFGNode?,
-    val condition: IRExpr
+    val condition: IRExpr,
+    val type: ConditionalNodeType
 ) : SingleInput {
     override val uuid = UUID.randomUUID().toString().replace("-", "")
 }
+
+sealed class ConditionalNodeType
+object IfElse : ConditionalNodeType()
+data class For(val id: Int) : ConditionalNodeType()
 
 sealed class JumpNodes(
     override var next: CFGNode?,
@@ -39,8 +44,8 @@ sealed class JumpNodes(
     override val uuid = UUID.randomUUID().toString().replace("-", "")
 }
 
-class BreakNode(next: CFGNode?, prev: CFGNode?) : JumpNodes(next, prev)
-class ContinueNode(next: CFGNode?, prev: CFGNode?) : JumpNodes(next, prev)
+class BreakNode(next: CFGNode?, prev: CFGNode?, val loopId: Int) : JumpNodes(next, prev)
+class ContinueNode(next: CFGNode?, prev: CFGNode?, val loopId: Int) : JumpNodes(next, prev)
 class ReturnNode(next: CFGNode?, prev: CFGNode?, val expr: IRExpr?) : JumpNodes(next, prev)
 
 class DeclarationNode(
@@ -70,7 +75,26 @@ class ExitNoOpNode(
 
 data class CFG(val entry: SingleInput, val exit: SingleOutput)
 
-fun constructCFG(statement: IRStatement): CFG {
+class CFGCreationInfo {
+    private val forLoopStack = mutableListOf<Int>()
+    private var loopIndex = 0
+    val lastMethod = ""
+
+    fun enterLoop() {
+        forLoopStack.add(loopIndex)
+        loopIndex++
+    }
+
+    fun leaveLoop() {
+        forLoopStack.removeAt(forLoopStack.size - 1)
+    }
+
+    fun loopId(): Int {
+        return forLoopStack[forLoopStack.size - 1]
+    }
+}
+
+fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
     return when (statement) {
         is IRAssignStatement -> {
             val node = RegularNode(null, null)
@@ -78,27 +102,27 @@ fun constructCFG(statement: IRStatement): CFG {
             CFG(node, node)
         }
         is IRBreakStatement -> {
-            val node = BreakNode(null, null)
+            val node = BreakNode(null, null, info.loopId())
             CFG(node, node)
         }
         is IRContinueStatement -> {
-            val node = ContinueNode(null, null)
+            val node = ContinueNode(null, null, info.loopId())
             CFG(node, node)
         }
         is IRIfStatement -> {
-            val ifCFG = constructCFG(statement.ifBlock)
-            val elseCFG = constructCFG(statement.elseBlock)
+            val ifCFG = constructCFG(statement.ifBlock, info)
+            val elseCFG = constructCFG(statement.elseBlock, info)
             if (ifCFG != null && elseCFG != null) {
                 val noOp = ExitNoOpNode(mutableListOf(ifCFG.exit, elseCFG.exit), null)
                 ifCFG.exit.next = noOp
                 elseCFG.exit.next = noOp
                 val branchNode = ConditionalNode(
-                    null, ifCFG.entry, elseCFG.entry, statement.condition
+                    null, ifCFG.entry, elseCFG.entry, statement.condition, IfElse
                 )
                 CFG(branchNode, noOp)
             } else if (ifCFG != null) {
                 val branchNode = ConditionalNode(
-                    null, ifCFG.entry, null, statement.condition
+                    null, ifCFG.entry, null, statement.condition, IfElse
                 )
                 val noOp = ExitNoOpNode(mutableListOf(ifCFG.exit, branchNode), null)
                 ifCFG.exit.next = noOp
@@ -106,7 +130,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 CFG(branchNode, noOp)
             } else if (elseCFG != null) {
                 val branchNode = ConditionalNode(
-                    null, null, elseCFG.entry, statement.condition
+                    null, null, elseCFG.entry, statement.condition, IfElse
                 )
                 val noOp = ExitNoOpNode(mutableListOf(branchNode, elseCFG.exit), null)
                 elseCFG.exit.next = noOp
@@ -114,7 +138,7 @@ fun constructCFG(statement: IRStatement): CFG {
                 CFG(branchNode, noOp)
             } else {
                 val branchNode = ConditionalNode(
-                    null, null, null, statement.condition
+                    null, null, null, statement.condition, IfElse
                 )
                 val noOp = ExitNoOpNode(mutableListOf(branchNode, branchNode), null)
                 branchNode.falsePath = noOp
@@ -133,9 +157,11 @@ fun constructCFG(statement: IRStatement): CFG {
             val declarationNode = DeclarationNode(null, null, declaration)
             val initNode = RegularNode(null, null)
             initNode.statements.add(init)
-            val conditionNode = ConditionalNode(null, null, null, termination)
+            info.enterLoop()
+            val conditionNode = ConditionalNode(
+                null, null, null, termination, For(info.loopId()))
             val noOp = EntryNoOpNode(mutableListOf(), null)
-            val blockCFG = constructCFG(statement.body)
+            val blockCFG = constructCFG(statement.body, info)
 
             declarationNode.next = initNode
             initNode.prev = declarationNode
@@ -155,6 +181,7 @@ fun constructCFG(statement: IRStatement): CFG {
 
             val exitNoOp = ExitNoOpNode(mutableListOf(conditionNode), null)
             conditionNode.falsePath = exitNoOp
+            info.leaveLoop()
 
             CFG(declarationNode, exitNoOp)
         }
@@ -168,12 +195,12 @@ fun constructCFG(statement: IRStatement): CFG {
             CFG(node, node)
         }
         is IRBlockStatement -> {
-            constructCFG(statement.block)!!
+            constructCFG(statement.block, info)!!
         }
     }
 }
 
-fun constructCFG(block: IRBlock?): CFG? {
+fun constructCFG(block: IRBlock?, info: CFGCreationInfo): CFG? {
     when {
         block == null -> return null
         block.fieldDeclarations.isNotEmpty() -> {
@@ -188,7 +215,7 @@ fun constructCFG(block: IRBlock?): CFG? {
             }
             var npt: SingleOutput = pt
             for (statement in block.statements) {
-                val cfg = constructCFG(statement)
+                val cfg = constructCFG(statement, info)
                 npt.next = cfg.entry
                 cfg.entry.prev = npt
                 npt = cfg.exit
@@ -197,11 +224,11 @@ fun constructCFG(block: IRBlock?): CFG? {
         }
         block.statements.isNotEmpty() -> {
             val statements = block.statements
-            var cfg = constructCFG(statements[0])
+            var cfg = constructCFG(statements[0], info)
             val entry = cfg.entry
             var pt = cfg.exit
             for (statement in statements.subList(1, statements.size)) {
-                cfg = constructCFG(statement)
+                cfg = constructCFG(statement, info)
                 pt.next = cfg.entry
                 cfg.entry.prev = pt
                 pt = cfg.exit
