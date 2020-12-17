@@ -18,10 +18,11 @@ data class Register(val name: String, val offset: Offset?) : Location() {
         fun stackPointer() = Register("rsp", null)
         fun instructionPointer() = Register("rip", null)
         fun returnRegister() = Register("rax", null)
-        fun reg10() = Register("r10", null)
-        fun reg11() = Register("r11", null)
-        fun regAX() = Register("rax", null)
-        fun regDX() = Register("rdx", null)
+        fun r10() = Register("r10", null)
+        fun r10b() = Register("r10b", null)
+        fun r11() = Register("r11", null)
+        fun rax() = Register("rax", null)
+        fun rdx() = Register("rdx", null)
     }
 }
 
@@ -95,41 +96,41 @@ fun irBinOpExprToLow(expr: IRBinOpExpr): List<Statement> {
             is IRBinOpExpr -> {
                 val leftLocation = traverse(expr.left)
                 val rightLocation = traverse(expr.right)
-                statements.add(MoveStatement(leftLocation!!, Register.reg10()))
-                statements.add(MoveStatement(rightLocation!!, Register.reg11()))
+                statements.add(MoveStatement(leftLocation!!, Register.r10()))
+                statements.add(MoveStatement(rightLocation!!, Register.r11()))
                 when (expr.op) {
                     BinOp.ADD -> {
-                        statements.add(AddStatement(Register.reg11(), Register.reg10()))
+                        statements.add(AddStatement(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.reg10(), tmp))
+                        statements.add(MoveStatement(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.SUBTRACT -> {
-                        statements.add(SubStatement(Register.reg11(), Register.reg10()))
+                        statements.add(SubStatement(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.reg10(), tmp))
+                        statements.add(MoveStatement(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MULTIPLY -> {
-                        statements.add(IMulStatement(Register.reg11(), Register.reg10()))
+                        statements.add(IMulStatement(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.reg10(), tmp))
+                        statements.add(MoveStatement(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.DIVIDE -> {
-                        statements.add(MoveStatement(Register.reg10(), Register.regAX()))
+                        statements.add(MoveStatement(Register.r10(), Register.rax()))
                         statements.add(SignedExtendStatement)
-                        statements.add(IDivStatement(Register.reg11()))
+                        statements.add(IDivStatement(Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.regAX(), tmp))
+                        statements.add(MoveStatement(Register.rax(), tmp))
                         tmp
                     }
                     BinOp.REMAINDER -> {
-                        statements.add(MoveStatement(Register.reg10(), Register.regAX()))
+                        statements.add(MoveStatement(Register.r10(), Register.rax()))
                         statements.add(SignedExtendStatement)
-                        statements.add(IDivStatement(Register.reg11()))
+                        statements.add(IDivStatement(Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.regDX(), tmp))
+                        statements.add(MoveStatement(Register.rdx(), tmp))
                         tmp
                     }
                     BinOp.LESS -> TODO()
