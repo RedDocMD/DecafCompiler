@@ -116,114 +116,114 @@ enum class SetType {
     }
 }
 
-sealed class Statement
-data class AddStatement(val src: Location, val dest: Location) : Statement() {
+sealed class Instruction
+data class AddInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "add $src, $dest"
     }
 }
 
-data class SubStatement(val src: Location, val dest: Location) : Statement() {
+data class SubInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "sub $src, $dest"
     }
 }
 
-data class IMulStatement(val src: Location, val dest: Location) : Statement() {
+data class IMulInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "imul $src, $dest"
     }
 }
 
-data class IDivStatement(val src: Location) : Statement() {
+data class IDivInstruction(val src: Location) : Instruction() {
     override fun toString(): String {
         return "idivq $src"
     }
 }
 
-data class CmpStatement(val src: Location, val dest: Location) : Statement() {
+data class CmpInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "cmp $src, $dest"
     }
 }
 
-data class AndStatement(val src: Location, val dest: Location) : Statement() {
+data class AndInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "and $src, $dest"
     }
 }
 
-data class OrStatement(val src: Location, val dest: Location) : Statement() {
+data class OrInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "or $src, $dest"
     }
 }
 
-data class NotStatement(val src: Location) : Statement() {
+data class NotInstruction(val src: Location) : Instruction() {
     override fun toString(): String {
         return "not $src"
     }
 }
 
-data class NegStatement(val src: Location) : Statement() {
+data class NegInstruction(val src: Location) : Instruction() {
     override fun toString(): String {
         return "nge $src"
     }
 }
 
-data class JumpStatement(val type: AsmJumpOp, val target: String) : Statement() {
+data class JumpInstruction(val type: AsmJumpOp, val target: String) : Instruction() {
     override fun toString(): String {
         return "$type $target"
     }
 }
 
-data class MoveStatement(val src: Location, val dest: Location) : Statement() {
+data class MoveInstruction(val src: Location, val dest: Location) : Instruction() {
     override fun toString(): String {
         return "mov $src, $dest"
     }
 }
 
-data class CMoveStatement(val type: AsmCMoveOp, val src: Register, val dest: Register) : Statement() {
+data class CMoveInstruction(val type: AsmCMoveOp, val src: Register, val dest: Register) : Instruction() {
     override fun toString(): String {
         return "$type $src $dest"
     }
 }
 
-data class SetStatement(val type: SetType, val reg: Register) : Statement() {
+data class SetInstruction(val type: SetType, val reg: Register) : Instruction() {
     override fun toString(): String {
         return "$type $reg"
     }
 }
 
-object SignedExtendStatement : Statement() {
+object SignedExtendInstruction : Instruction() {
     override fun toString() = "cqto"
 }
 
-object ReturnStatement : Statement() {
+object ReturnInstruction : Instruction() {
     override fun toString() = "ret"
 }
 
-data class CallStatement(val label: String) : Statement() {
+data class CallInstruction(val label: String) : Instruction() {
     override fun toString() = "call $label"
 }
 
-data class PushStatement(val src: Location) : Statement() {
+data class PushInstruction(val src: Location) : Instruction() {
     override fun toString() = "push $src"
 }
 
-data class PopStatement(val src: Location?) : Statement() {
+data class PopInstruction(val src: Location?) : Instruction() {
     override fun toString() = "pop ${src ?: ""}"
 }
 
-object LeaveStatement : Statement() {
+object LeaveInstruction : Instruction() {
     override fun toString() = "leave"
 }
 
-data class EnterStatement(val size: ImmediateVal) : Statement() {
+data class EnterInstruction(val size: ImmediateVal) : Instruction() {
     override fun toString() = "enter \$($size*8), $0"
 }
 
-data class Block(val label: String?, val statements: List<Statement>)
+data class Block(val label: String?, val instructions: List<Instruction>)
 
 data class Method(
     var stackSize: Int,
@@ -239,8 +239,8 @@ data class Program(
     var methods: List<Method>
 )
 
-fun irExprToLow(expr: IRExpr): List<Statement> {
-    val statements = mutableListOf<Statement>()
+fun irExprToLow(expr: IRExpr): List<Instruction> {
+    val statements = mutableListOf<Instruction>()
 
     fun traverse(expr: IRExpr): Location {
         return when (expr) {
@@ -248,10 +248,10 @@ fun irExprToLow(expr: IRExpr): List<Statement> {
             is IRBoolLiteral -> ImmediateVal(if (expr.lit) 1 else 0)
             is IRMethodCallExpr -> {
                 val argLocations = expr.argList.map { traverse(it) }
-                argLocations.forEach { statements.add(PushStatement(it)) }
-                statements.add(CallStatement(expr.name))
+                argLocations.forEach { statements.add(PushInstruction(it)) }
+                statements.add(CallInstruction(expr.name))
                 for (i in 1..expr.argList.size) {
-                    statements.add(PopStatement(null))
+                    statements.add(PopInstruction(null))
                 }
                 Register.returnRegister()
             }
@@ -259,95 +259,95 @@ fun irExprToLow(expr: IRExpr): List<Statement> {
             is IRBinOpExpr -> {
                 val leftLocation = traverse(expr.left)
                 val rightLocation = traverse(expr.right)
-                statements.add(MoveStatement(leftLocation, Register.r10()))
-                statements.add(MoveStatement(rightLocation, Register.r11()))
+                statements.add(MoveInstruction(leftLocation, Register.r10()))
+                statements.add(MoveInstruction(rightLocation, Register.r11()))
                 when (expr.op) {
                     BinOp.ADD -> {
-                        statements.add(AddStatement(Register.r11(), Register.r10()))
+                        statements.add(AddInstruction(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.SUBTRACT -> {
-                        statements.add(SubStatement(Register.r11(), Register.r10()))
+                        statements.add(SubInstruction(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MULTIPLY -> {
-                        statements.add(IMulStatement(Register.r11(), Register.r10()))
+                        statements.add(IMulInstruction(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.DIVIDE -> {
-                        statements.add(MoveStatement(Register.r10(), Register.rax()))
-                        statements.add(SignedExtendStatement)
-                        statements.add(IDivStatement(Register.r11()))
+                        statements.add(MoveInstruction(Register.r10(), Register.rax()))
+                        statements.add(SignedExtendInstruction)
+                        statements.add(IDivInstruction(Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.rax(), tmp))
+                        statements.add(MoveInstruction(Register.rax(), tmp))
                         tmp
                     }
                     BinOp.REMAINDER -> {
-                        statements.add(MoveStatement(Register.r10(), Register.rax()))
-                        statements.add(SignedExtendStatement)
-                        statements.add(IDivStatement(Register.r11()))
+                        statements.add(MoveInstruction(Register.r10(), Register.rax()))
+                        statements.add(SignedExtendInstruction)
+                        statements.add(IDivInstruction(Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.rdx(), tmp))
+                        statements.add(MoveInstruction(Register.rdx(), tmp))
                         tmp
                     }
                     BinOp.LESS -> {
-                        statements.add(CmpStatement(Register.r11(), Register.r10()))
-                        statements.add(SetStatement(SetType.SETL, Register.r10b()))
+                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
+                        statements.add(SetInstruction(SetType.SETL, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MORE -> {
-                        statements.add(CmpStatement(Register.r11(), Register.r10()))
-                        statements.add(SetStatement(SetType.SETG, Register.r10b()))
+                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
+                        statements.add(SetInstruction(SetType.SETG, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.LESS_OR_EQ -> {
-                        statements.add(CmpStatement(Register.r11(), Register.r10()))
-                        statements.add(SetStatement(SetType.SETLE, Register.r10b()))
+                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
+                        statements.add(SetInstruction(SetType.SETLE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MORE_OR_EQ -> {
-                        statements.add(CmpStatement(Register.r11(), Register.r10()))
-                        statements.add(SetStatement(SetType.SETGE, Register.r10b()))
+                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
+                        statements.add(SetInstruction(SetType.SETGE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.EQ -> {
-                        statements.add(CmpStatement(Register.r11(), Register.r10()))
-                        statements.add(SetStatement(SetType.SETE, Register.r10b()))
+                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
+                        statements.add(SetInstruction(SetType.SETE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.NOT_EQ -> {
-                        statements.add(CmpStatement(Register.r11(), Register.r10()))
-                        statements.add(SetStatement(SetType.SETNE, Register.r10b()))
+                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
+                        statements.add(SetInstruction(SetType.SETNE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.AND -> {
-                        statements.add(AndStatement(Register.r10(), Register.r11()))
+                        statements.add(AndInstruction(Register.r10(), Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r11(), tmp))
+                        statements.add(MoveInstruction(Register.r11(), tmp))
                         tmp
                     }
                     BinOp.OR -> {
-                        statements.add(OrStatement(Register.r10(), Register.r11()))
+                        statements.add(OrInstruction(Register.r10(), Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r11(), tmp))
+                        statements.add(MoveInstruction(Register.r11(), tmp))
                         tmp
                     }
                 }
@@ -356,17 +356,17 @@ fun irExprToLow(expr: IRExpr): List<Statement> {
                 val loc = traverse(expr.expr)
                 when (expr.op) {
                     UnaryOp.MINUS -> {
-                        statements.add(MoveStatement(loc, Register.r10()))
-                        statements.add(NegStatement(Register.r10()))
+                        statements.add(MoveInstruction(loc, Register.r10()))
+                        statements.add(NegInstruction(Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     UnaryOp.NOT -> {
-                        statements.add(MoveStatement(loc, Register.r10()))
-                        statements.add(NotStatement(Register.r10b()))
+                        statements.add(MoveInstruction(loc, Register.r10()))
+                        statements.add(NotInstruction(Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveStatement(Register.r10(), tmp))
+                        statements.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                 }
@@ -376,7 +376,7 @@ fun irExprToLow(expr: IRExpr): List<Statement> {
                     is IRIDLocation -> Label(location.name)
                     is IRArrayLocation -> {
                         val index = traverse(location.indexExpr)
-                        statements.add(MoveStatement(index, Register.r10()))
+                        statements.add(MoveInstruction(index, Register.r10()))
                         ArrayAsm(location.name, Register.r10())
                     }
                 }
@@ -386,4 +386,8 @@ fun irExprToLow(expr: IRExpr): List<Statement> {
 
     traverse(expr)
     return statements
+}
+
+fun irStatementToLower(statements: IRStatement) {
+
 }

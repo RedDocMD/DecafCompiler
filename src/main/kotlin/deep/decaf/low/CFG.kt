@@ -1,7 +1,6 @@
 package deep.decaf.low
 
 import deep.decaf.ir.*
-import java.lang.RuntimeException
 import java.util.*
 
 interface CFGNode {
