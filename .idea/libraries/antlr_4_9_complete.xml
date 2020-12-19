@@ -1,7 +1,7 @@
 <component name="libraryTable">
-  <library name="picocli-4.5.2">
+  <library name="antlr-4.9-complete">
     <CLASSES>
-      <root url="jar://$USER_HOME$/software/picocli-4.5.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/libs/antlr-4.9-complete.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
