@@ -1,6 +1,7 @@
 package deep.decaf.low
 
 import deep.decaf.ir.*
+import java.lang.RuntimeException
 import java.util.*
 
 interface CFGNode {
@@ -67,6 +68,7 @@ class ConditionalNode(
 sealed class ConditionalNodeType
 object IfElse : ConditionalNodeType()
 data class For(val id: Int) : ConditionalNodeType()
+data class MethodEnd(val name: String) : ConditionalNodeType()
 
 sealed class JumpNodes(
     override var next: CFGNode?,
@@ -171,6 +173,12 @@ class CFGCreationInfo {
         return forLoopStack[forLoopStack.size - 1]
     }
 }
+
+data class CFGProgram(
+    val mainCFG: CFG,
+    val cfgMap: Map<String, CFG>,
+    val declarations: List<IRFieldDeclaration>
+)
 
 fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
     return when (statement) {
@@ -453,6 +461,62 @@ fun constructCFG(block: IRBlock?, info: CFGCreationInfo): CFG? {
             return CFG(entry, pt)
         }
         else -> return null
+    }
+}
+
+fun constructCFG(program: IRProgram): CFGProgram {
+    val methodCFGMap = mutableMapOf<String, CFG>()
+    var mainCFG: CFG? = null
+    for (method in program.methodDeclarations) {
+        val info = CFGCreationInfo()
+        val cfg = constructCFG(method.block, info)
+        if (cfg != null) {
+            // Rewire returns to point to end of method
+            val endMethod = ExitNoOpNode(mutableListOf(cfg.exit), null, MethodEnd(method.name))
+            cfg.exit.next = endMethod
+
+            val visited = mutableMapOf<String, Boolean>()
+            fun dfs(node: CFGNode) {
+                val done = visited[node.uuid] ?: false
+                if (!done) {
+                    visited[node.uuid] = true
+                    if (node is ReturnNode) {
+                        val next = node.next
+                        if (next != null) {
+                            if (next is SingleInput) {
+                                next.prev = null
+                            } else if (next is NoOpNode) {
+                                next.prevs.remove(node)
+                            }
+                        }
+                        node.next = endMethod
+                        endMethod.prevs.add(node)
+                    } else {
+                        if (node is SingleOutput && node.next != null) {
+                            dfs(node.next!!)
+                        } else if (node is ConditionalNode) {
+                            if (node.truePath != null) {
+                                dfs(node.truePath!!)
+                            }
+                            if (node.falsePath != null) {
+                                dfs(node.falsePath!!)
+                            }
+                        }
+                    }
+                }
+            }
+
+            dfs(cfg.entry)
+            methodCFGMap[method.name] = CFG(cfg.entry, endMethod)
+            if (method.name == "main") {
+                mainCFG = cfg
+            }
+        }
+    }
+    if (mainCFG != null) {
+        return CFGProgram(mainCFG, methodCFGMap, program.fieldDeclarations)
+    } else {
+        throw IllegalStateException("semantic checker screwed up")
     }
 }
 
