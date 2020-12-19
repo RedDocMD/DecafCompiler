@@ -1,6 +1,7 @@
 package deep.decaf.low.amd64
 
 import deep.decaf.ir.*
+import java.lang.IllegalStateException
 import java.util.*
 
 fun getUUID(): String = UUID.randomUUID().toString().replace("-", "")
@@ -240,7 +241,7 @@ data class Program(
 )
 
 fun irExprToLow(expr: IRExpr): List<Instruction> {
-    val statements = mutableListOf<Instruction>()
+    val instructions = mutableListOf<Instruction>()
 
     fun traverse(expr: IRExpr): Location {
         return when (expr) {
@@ -248,10 +249,10 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
             is IRBoolLiteral -> ImmediateVal(if (expr.lit) 1 else 0)
             is IRMethodCallExpr -> {
                 val argLocations = expr.argList.map { traverse(it) }
-                argLocations.forEach { statements.add(PushInstruction(it)) }
-                statements.add(CallInstruction(expr.name))
+                argLocations.forEach { instructions.add(PushInstruction(it)) }
+                instructions.add(CallInstruction(expr.name))
                 for (i in 1..expr.argList.size) {
-                    statements.add(PopInstruction(null))
+                    instructions.add(PopInstruction(null))
                 }
                 Register.returnRegister()
             }
@@ -259,95 +260,95 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
             is IRBinOpExpr -> {
                 val leftLocation = traverse(expr.left)
                 val rightLocation = traverse(expr.right)
-                statements.add(MoveInstruction(leftLocation, Register.r10()))
-                statements.add(MoveInstruction(rightLocation, Register.r11()))
+                instructions.add(MoveInstruction(leftLocation, Register.r10()))
+                instructions.add(MoveInstruction(rightLocation, Register.r11()))
                 when (expr.op) {
                     BinOp.ADD -> {
-                        statements.add(AddInstruction(Register.r11(), Register.r10()))
+                        instructions.add(AddInstruction(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.SUBTRACT -> {
-                        statements.add(SubInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SubInstruction(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MULTIPLY -> {
-                        statements.add(IMulInstruction(Register.r11(), Register.r10()))
+                        instructions.add(IMulInstruction(Register.r11(), Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.DIVIDE -> {
-                        statements.add(MoveInstruction(Register.r10(), Register.rax()))
-                        statements.add(SignedExtendInstruction)
-                        statements.add(IDivInstruction(Register.r11()))
+                        instructions.add(MoveInstruction(Register.r10(), Register.rax()))
+                        instructions.add(SignedExtendInstruction)
+                        instructions.add(IDivInstruction(Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.rax(), tmp))
+                        instructions.add(MoveInstruction(Register.rax(), tmp))
                         tmp
                     }
                     BinOp.REMAINDER -> {
-                        statements.add(MoveInstruction(Register.r10(), Register.rax()))
-                        statements.add(SignedExtendInstruction)
-                        statements.add(IDivInstruction(Register.r11()))
+                        instructions.add(MoveInstruction(Register.r10(), Register.rax()))
+                        instructions.add(SignedExtendInstruction)
+                        instructions.add(IDivInstruction(Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.rdx(), tmp))
+                        instructions.add(MoveInstruction(Register.rdx(), tmp))
                         tmp
                     }
                     BinOp.LESS -> {
-                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
-                        statements.add(SetInstruction(SetType.SETL, Register.r10b()))
+                        instructions.add(CmpInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SetInstruction(SetType.SETL, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MORE -> {
-                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
-                        statements.add(SetInstruction(SetType.SETG, Register.r10b()))
+                        instructions.add(CmpInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SetInstruction(SetType.SETG, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.LESS_OR_EQ -> {
-                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
-                        statements.add(SetInstruction(SetType.SETLE, Register.r10b()))
+                        instructions.add(CmpInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SetInstruction(SetType.SETLE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.MORE_OR_EQ -> {
-                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
-                        statements.add(SetInstruction(SetType.SETGE, Register.r10b()))
+                        instructions.add(CmpInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SetInstruction(SetType.SETGE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.EQ -> {
-                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
-                        statements.add(SetInstruction(SetType.SETE, Register.r10b()))
+                        instructions.add(CmpInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SetInstruction(SetType.SETE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.NOT_EQ -> {
-                        statements.add(CmpInstruction(Register.r11(), Register.r10()))
-                        statements.add(SetInstruction(SetType.SETNE, Register.r10b()))
+                        instructions.add(CmpInstruction(Register.r11(), Register.r10()))
+                        instructions.add(SetInstruction(SetType.SETNE, Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     BinOp.AND -> {
-                        statements.add(AndInstruction(Register.r10(), Register.r11()))
+                        instructions.add(AndInstruction(Register.r10(), Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r11(), tmp))
+                        instructions.add(MoveInstruction(Register.r11(), tmp))
                         tmp
                     }
                     BinOp.OR -> {
-                        statements.add(OrInstruction(Register.r10(), Register.r11()))
+                        instructions.add(OrInstruction(Register.r10(), Register.r11()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r11(), tmp))
+                        instructions.add(MoveInstruction(Register.r11(), tmp))
                         tmp
                     }
                 }
@@ -356,17 +357,17 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
                 val loc = traverse(expr.expr)
                 when (expr.op) {
                     UnaryOp.MINUS -> {
-                        statements.add(MoveInstruction(loc, Register.r10()))
-                        statements.add(NegInstruction(Register.r10()))
+                        instructions.add(MoveInstruction(loc, Register.r10()))
+                        instructions.add(NegInstruction(Register.r10()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                     UnaryOp.NOT -> {
-                        statements.add(MoveInstruction(loc, Register.r10()))
-                        statements.add(NotInstruction(Register.r10b()))
+                        instructions.add(MoveInstruction(loc, Register.r10()))
+                        instructions.add(NotInstruction(Register.r10b()))
                         val tmp = Label(getUUID())
-                        statements.add(MoveInstruction(Register.r10(), tmp))
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
                         tmp
                     }
                 }
@@ -376,7 +377,7 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
                     is IRIDLocation -> Label(location.name)
                     is IRArrayLocation -> {
                         val index = traverse(location.indexExpr)
-                        statements.add(MoveInstruction(index, Register.r10()))
+                        instructions.add(MoveInstruction(index, Register.r10()))
                         ArrayAsm(location.name, Register.r10())
                     }
                 }
@@ -385,9 +386,72 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
     }
 
     traverse(expr)
-    return statements
+    return instructions
 }
 
-fun irStatementToLower(statements: IRStatement) {
+fun irStatementToLow(statement: IRStatement): List<Instruction> {
+    val instructions = mutableListOf<Instruction>()
 
+    when (statement) {
+        is IRDirectAssignStatement -> {
+            val exprInstructions = irExprToLow(statement.expr)
+            instructions.addAll(exprInstructions)
+            val exprValLocation = (exprInstructions.last() as MoveInstruction).dest
+            val rhs = when (val location = statement.location) {
+                is IRIDLocation -> Label(location.name)
+                is IRArrayLocation -> {
+                    val indexInstructions = irExprToLow(location.indexExpr)
+                    instructions.addAll(indexInstructions)
+                    val index = (indexInstructions.last() as MoveInstruction).dest
+                    instructions.add(MoveInstruction(index, Register.r10()))
+                    ArrayAsm(location.name, Register.r10())
+                }
+            }
+            instructions.add(MoveInstruction(exprValLocation, Register.r10()))
+            instructions.add(MoveInstruction(Register.r10(), rhs))
+        }
+        is IRIncrementStatement -> {
+            val exprInstructions = irExprToLow(statement.expr)
+            instructions.addAll(exprInstructions)
+            val exprValLocation = (exprInstructions.last() as MoveInstruction).dest
+            val rhs = when (val location = statement.location) {
+                is IRIDLocation -> Label(location.name)
+                is IRArrayLocation -> {
+                    val indexInstructions = irExprToLow(location.indexExpr)
+                    instructions.addAll(indexInstructions)
+                    val index = (indexInstructions.last() as MoveInstruction).dest
+                    instructions.add(MoveInstruction(index, Register.r10()))
+                    ArrayAsm(location.name, Register.r10())
+                }
+            }
+            instructions.add(MoveInstruction(rhs, Register.r10()))
+            instructions.add(AddInstruction(exprValLocation, Register.r10()))
+            instructions.add(MoveInstruction(Register.r10(), rhs))
+        }
+        is IRDecrementStatement -> {
+            val exprInstructions = irExprToLow(statement.expr)
+            instructions.addAll(exprInstructions)
+            val exprValLocation = (exprInstructions.last() as MoveInstruction).dest
+            val rhs = when (val location = statement.location) {
+                is IRIDLocation -> Label(location.name)
+                is IRArrayLocation -> {
+                    val indexInstructions = irExprToLow(location.indexExpr)
+                    instructions.addAll(indexInstructions)
+                    val index = (indexInstructions.last() as MoveInstruction).dest
+                    instructions.add(MoveInstruction(index, Register.r10()))
+                    ArrayAsm(location.name, Register.r10())
+                }
+            }
+            instructions.add(MoveInstruction(rhs, Register.r10()))
+            instructions.add(SubInstruction(exprValLocation, Register.r10()))
+            instructions.add(MoveInstruction(Register.r10(), rhs))
+        }
+        is IRInvokeStatement -> {
+            val invokeInstructions = irExprToLow(statement.expr)
+            instructions.addAll(invokeInstructions)
+        }
+        else -> throw IllegalStateException("shouldn't be calling for this statement: ${irToString(statement)}")
+    }
+
+    return instructions
 }
