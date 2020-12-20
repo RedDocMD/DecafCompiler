@@ -328,13 +328,27 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
 
             // Re-wire the break and continue properly
             val done = mutableMapOf<String, Boolean>()
+            var blockDepth = 0
             fun dfs(node: CFGNode) {
                 val isDone = done[node.uuid] ?: false
                 if (!isDone) {
+                    if (node is BlockEntryNode) {
+                        blockDepth++
+                    }
+                    if (node is BlockExitNode) {
+                        blockDepth--
+                    }
                     if (node is BreakNode && node.loopId == info.loopId()) {
                         val next = node.next
-                        node.next = exitNoOp
-                        exitNoOp.prevs.add(node)
+                        val exits = Array(blockDepth) { BlockExitNode(null, null) }
+                        for (i in 0 until blockDepth - 1) {
+                            exits[i].next = exits[i + 1]
+                            exits[i + 1].prev = exits[i]
+                        }
+                        node.next = exits[0]
+                        exits[0].prev = node
+                        exits[blockDepth - 1].next = exitNoOp
+                        exitNoOp.prevs.add(exits[blockDepth - 1])
                         if (next != null) {
                             if (next is SingleInput) {
                                 next.prev = null
@@ -345,8 +359,15 @@ fun constructCFG(statement: IRStatement, info: CFGCreationInfo): CFG {
                     }
                     if (node is ContinueNode && node.loopId == info.loopId()) {
                         val next = node.next
-                        node.next = noOp
-                        noOp.prevs.add(node)
+                        val exits = Array(blockDepth) { BlockExitNode(null, null) }
+                        for (i in 0 until blockDepth - 1) {
+                            exits[i].next = exits[i + 1]
+                            exits[i + 1].prev = exits[i]
+                        }
+                        node.next = exits[0]
+                        exits[0].prev = node
+                        exits[blockDepth - 1].next = noOp
+                        noOp.prevs.add(exits[blockDepth - 1])
                         if (next != null) {
                             if (next is SingleInput) {
                                 next.prev = null
