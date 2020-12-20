@@ -39,6 +39,52 @@ class RegularNode(
 
 }
 
+class BlockEntryNode(
+    override var prev: CFGNode?,
+    override var next: CFGNode?
+) : SingleInput, SingleOutput {
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as RegularNode
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
+
+}
+
+class BlockExitNode(
+    override var prev: CFGNode?,
+    override var next: CFGNode?
+) : SingleInput, SingleOutput {
+    override val uuid = UUID.randomUUID().toString().replace("-", "")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as RegularNode
+
+        if (uuid != other.uuid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return uuid.hashCode()
+    }
+
+}
+
 class ConditionalNode(
     override var prev: CFGNode?,
     var truePath: CFGNode?,
@@ -428,36 +474,38 @@ fun constructCFG(block: IRBlock?, info: CFGCreationInfo): CFG? {
     when {
         block == null -> return null
         block.fieldDeclarations.isNotEmpty() -> {
+            val entry = BlockEntryNode(null, null)
+            var pt: SingleOutput = entry
             val fields = block.fieldDeclarations
-            var node = DeclarationNode(null, null, fields[0])
-            val entry = node
-            var pt = node
-            for (field in fields.subList(1, fields.size)) {
-                node = DeclarationNode(null, pt, field)
+            for (field in fields) {
+                val node = DeclarationNode(null, pt, field)
                 pt.next = node
                 pt = node
             }
-            var npt: SingleOutput = pt
+            var npt = pt
             for (statement in block.statements) {
                 val cfg = constructCFG(statement, info)
                 npt.next = cfg.entry
                 cfg.entry.prev = npt
                 npt = cfg.exit
             }
-            return CFG(entry, npt)
+            val end = BlockExitNode(npt, null)
+            npt.next = end
+            return CFG(entry, end)
         }
         block.statements.isNotEmpty() -> {
+            val entry = BlockEntryNode(null, null)
+            var pt = entry as SingleOutput
             val statements = block.statements
-            var cfg = constructCFG(statements[0], info)
-            val entry = cfg.entry
-            var pt = cfg.exit
-            for (statement in statements.subList(1, statements.size)) {
-                cfg = constructCFG(statement, info)
+            for (statement in statements) {
+                val cfg = constructCFG(statement, info)
                 pt.next = cfg.entry
                 cfg.entry.prev = pt
                 pt = cfg.exit
             }
-            return CFG(entry, pt)
+            val end = BlockExitNode(pt, null)
+            pt.next = end
+            return CFG(entry, end)
         }
         else -> return null
     }
@@ -529,6 +577,8 @@ private fun cfgNodeLabel(node: CFGNode): String {
         is DeclarationNode -> irToString(node.declaration)
         is EntryNoOpNode -> "Xin"
         is ExitNoOpNode -> "Xout"
+        is BlockEntryNode -> "ENTER"
+        is BlockExitNode -> "EXIT"
         else -> throw IllegalArgumentException("I don't know this variant of node")
     }
 }
@@ -545,7 +595,7 @@ fun dotFileFromCFG(cfg: CFG): String {
             if (label.last() == '\n') label = label.removeRange(label.length - 1, label.length)
             label = label.replace("\"", "\\\"")
             val shape = when (node) {
-                is RegularNode, is DeclarationNode -> "box"
+                is RegularNode, is DeclarationNode, is BlockEntryNode, is BlockExitNode -> "box"
                 is ConditionalNode -> "diamond"
                 is BreakNode, is ContinueNode, is ReturnNode -> "parallelogram"
                 is NoOpNode -> "circle"
