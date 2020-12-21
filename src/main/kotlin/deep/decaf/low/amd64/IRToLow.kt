@@ -10,11 +10,15 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
         return when (expr) {
             is IRIntLiteral -> {
                 instructions.add(MoveInstruction(ImmediateVal(expr.lit), Register.r10()))
-                Register.r10()
+                val tmp = Label(getUUID())
+                instructions.add(MoveInstruction(Register.r10(), tmp))
+                tmp
             }
             is IRBoolLiteral -> {
                 instructions.add(MoveInstruction(ImmediateVal(if (expr.lit) 1 else 0), Register.r10()))
-                Register.r10()
+                val tmp = Label(getUUID())
+                instructions.add(MoveInstruction(Register.r10(), tmp))
+                tmp
             }
             is IRMethodCallExpr -> {
                 val argLocations = expr.argList.map { traverse(it) }
@@ -294,8 +298,12 @@ fun irMethodToLow(method: IRMethodDeclaration): List<Block> {
                         blocks.add(loopEndBlock)
                         loopEndBlock
                     }
-                    is IRReturnStatement -> TODO()
-                    is IRBlockStatement -> TODO()
+                    is IRReturnStatement -> {
+                        block.instructions.add(LeaveInstruction)
+                        block.instructions.add(ReturnInstruction)
+                        block
+                    }
+                    is IRBlockStatement -> convert(ir.block, block)
                 }
             }
             is IRBlock -> {
