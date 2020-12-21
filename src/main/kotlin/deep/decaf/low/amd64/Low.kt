@@ -218,7 +218,7 @@ object LeaveInstruction : Instruction() {
     override fun toString() = "leave"
 }
 
-data class EnterInstruction(val size: ImmediateVal) : Instruction() {
+data class EnterInstruction(val size: Int) : Instruction() {
     override fun toString() = "enter \$($size*8), $0"
 }
 
