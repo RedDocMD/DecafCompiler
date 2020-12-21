@@ -8,8 +8,14 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
 
     fun traverse(expr: IRExpr): Location {
         return when (expr) {
-            is IRIntLiteral -> ImmediateVal(expr.lit)
-            is IRBoolLiteral -> ImmediateVal(if (expr.lit) 1 else 0)
+            is IRIntLiteral -> {
+                instructions.add(MoveInstruction(ImmediateVal(expr.lit), Register.r10()))
+                Register.r10()
+            }
+            is IRBoolLiteral -> {
+                instructions.add(MoveInstruction(ImmediateVal(if (expr.lit) 1 else 0), Register.r10()))
+                Register.r10()
+            }
             is IRMethodCallExpr -> {
                 val argLocations = expr.argList.map { traverse(it) }
                 argLocations.forEach { instructions.add(PushInstruction(it)) }
@@ -217,4 +223,69 @@ fun irStatementToLow(statement: IRStatement): List<Instruction> {
     }
 
     return instructions
+}
+
+fun irMethodToLow(method: IRMethodDeclaration): List<Block> {
+    val blocks = mutableListOf<Block>()
+    blocks.add(Block(method.name, mutableListOf()))
+
+    var falseBlockCount = 0
+    var ifEndCount = 0
+
+    fun convert(ir: IR, block: Block): Block {
+        return when (ir) {
+            is IRStatement -> {
+                when (ir) {
+                    is IRAssignStatement, is IRInvokeStatement -> {
+                        val instructions = irStatementToLow(ir)
+                        block.instructions.addAll(instructions)
+                        block
+                    }
+                    is IRBreakStatement -> TODO()
+                    is IRContinueStatement -> TODO()
+                    is IRIfStatement -> {
+                        val conditionInstructions = irExprToLow(ir.condition)
+                        block.instructions.addAll(conditionInstructions)
+                        val ansLoc = (conditionInstructions.last() as MoveInstruction).dest
+                        block.instructions.add(MoveInstruction(ansLoc, Register.r10()))
+                        block.instructions.add(CmpInstruction(Register.r10(), ImmediateVal(1)))
+
+                        falseBlockCount++
+                        ifEndCount++
+                        val falseBlock = Block("lab_false_$falseBlockCount", mutableListOf())
+                        val ifEndBlock = Block("lab_if_end_$ifEndCount", mutableListOf())
+
+                        block.instructions.add(JumpInstruction(AsmJumpOp.JNE, falseBlock.label!!))
+                        val newBlock = convert(ir.ifBlock, block)
+                        newBlock.instructions.add(JumpInstruction(AsmJumpOp.JMP, ifEndBlock.label!!))
+
+                        blocks.add(falseBlock)
+                        if (ir.elseBlock != null) {
+                            convert(ir.elseBlock, falseBlock)
+                        }
+
+                        blocks.add(ifEndBlock)
+                        ifEndBlock
+                    }
+                    is IRForStatement -> TODO()
+                    is IRReturnStatement -> TODO()
+                    is IRBlockStatement -> TODO()
+                }
+            }
+            is IRBlock -> {
+                var currBlock = block
+                for (memberDeclaration in ir.fieldDeclarations) {
+                    currBlock.instructions.add(PushInstruction(ImmediateVal(0)))
+                }
+                for (statement in ir.statements) {
+                    currBlock = convert(statement, currBlock)
+                }
+                currBlock
+            }
+            else -> throw IllegalStateException("cannot call this method on this IR")
+        }
+    }
+
+    convert(method.block, blocks[0])
+    return blocks
 }

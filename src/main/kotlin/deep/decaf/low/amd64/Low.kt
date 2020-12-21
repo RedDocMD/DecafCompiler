@@ -222,7 +222,21 @@ data class EnterInstruction(val size: ImmediateVal) : Instruction() {
     override fun toString() = "enter \$($size*8), $0"
 }
 
-data class Block(val label: String?, val instructions: MutableList<Instruction>)
+data class Block(val label: String?, val instructions: MutableList<Instruction>) {
+    override fun toString(): String {
+        val stringBuilder = StringBuilder()
+        val pref: String = if (label != null) {
+            stringBuilder.append("$label:").append('\n')
+            "\t"
+        } else {
+            ""
+        }
+        for (instruction in instructions) {
+            stringBuilder.append(pref).append(instruction.toString()).append('\n')
+        }
+        return stringBuilder.toString()
+    }
+}
 
 data class Method(
     var stackSize: Int,
