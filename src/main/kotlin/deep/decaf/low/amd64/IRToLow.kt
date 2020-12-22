@@ -147,11 +147,21 @@ fun irExprToLow(expr: IRExpr): List<Instruction> {
             }
             is IRLocationExpression -> {
                 when (val location = expr.location) {
-                    is IRIDLocation -> Label(location.name)
+                    is IRIDLocation -> {
+                        val loc = Label(location.name)
+                        instructions.add(MoveInstruction(loc, Register.r10()))
+                        val tmp = Label(getUUID())
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
+                        tmp
+                    }
                     is IRArrayLocation -> {
                         val index = traverse(location.indexExpr)
                         instructions.add(MoveInstruction(index, Register.r10()))
-                        ArrayAsm(location.name, Register.r10())
+                        val loc = ArrayAsm(location.name, Register.r10())
+                        instructions.add(MoveInstruction(loc, Register.r10()))
+                        val tmp = Label(getUUID())
+                        instructions.add(MoveInstruction(Register.r10(), tmp))
+                        tmp
                     }
                 }
             }
@@ -233,10 +243,11 @@ fun irMethodToLow(method: IRMethodDeclaration): List<Block> {
     val blocks = mutableListOf<Block>()
     blocks.add(Block(method.name, mutableListOf()))
 
-    var falseBlockCount = 0
-    var ifEndCount = 0
-    var loopStartCount = 0
-    var loopEndCount = 0
+    var loopCount = 0
+    var ifCount = 0
+
+    var loopStartLabel: String? = null
+    var loopEndLabel: String? = null
 
     fun convert(ir: IR, block: Block): Block {
         return when (ir) {
@@ -247,8 +258,14 @@ fun irMethodToLow(method: IRMethodDeclaration): List<Block> {
                         block.instructions.addAll(instructions)
                         block
                     }
-                    is IRBreakStatement -> TODO()
-                    is IRContinueStatement -> TODO()
+                    is IRBreakStatement -> {
+                        block.instructions.add(JumpInstruction(AsmJumpOp.JMP, loopEndLabel!!))
+                        block
+                    }
+                    is IRContinueStatement -> {
+                        block.instructions.add(JumpInstruction(AsmJumpOp.JMP, loopStartLabel!!))
+                        block
+                    }
                     is IRIfStatement -> {
                         val conditionInstructions = irExprToLow(ir.condition)
                         block.instructions.addAll(conditionInstructions)
@@ -256,10 +273,9 @@ fun irMethodToLow(method: IRMethodDeclaration): List<Block> {
                         block.instructions.add(MoveInstruction(ansLoc, Register.r10()))
                         block.instructions.add(CmpInstruction(Register.r10(), ImmediateVal(1)))
 
-                        falseBlockCount++
-                        ifEndCount++
-                        val falseBlock = Block("False$falseBlockCount", mutableListOf())
-                        val ifEndBlock = Block("IFend$ifEndCount", mutableListOf())
+                        ifCount++
+                        val falseBlock = Block("False$ifCount", mutableListOf())
+                        val ifEndBlock = Block("IFend$ifCount", mutableListOf())
 
                         block.instructions.add(JumpInstruction(AsmJumpOp.JNE, falseBlock.label!!))
                         val newBlock = convert(ir.ifBlock, block)
@@ -281,17 +297,31 @@ fun irMethodToLow(method: IRMethodDeclaration): List<Block> {
                         block.instructions.add(MoveInstruction(initLoc, Register.r10()))
                         block.instructions.add(MoveInstruction(Register.r10(), Label(ir.loopVar)))
 
-                        loopStartCount++
-                        val loopBlock = Block("LoopStart$loopStartCount", mutableListOf())
+                        loopCount++
+                        val loopBlock = Block("LoopStart$loopCount", mutableListOf())
+                        loopStartLabel = loopBlock.label
                         blocks.add(loopBlock)
-                        val conditionInstructions = irExprToLow(ir.condition)
+                        val conditionInstructions = irExprToLow(
+                            IRBinOpExpr(
+                                IRLocationExpression(
+                                    IRIDLocation(
+                                        ir.loopVar,
+                                        Position.unknown()
+                                    ),
+                                    Position.unknown()
+                                ),
+                                ir.condition,
+                                BinOp.NOT_EQ,
+                                Position.unknown()
+                            )
+                        )
                         loopBlock.instructions.addAll(conditionInstructions)
                         val ansLoc = (conditionInstructions.last() as MoveInstruction).dest
                         loopBlock.instructions.add(MoveInstruction(ansLoc, Register.r10()))
                         loopBlock.instructions.add(CmpInstruction(Register.r10(), ImmediateVal(1)))
 
-                        loopEndCount++
-                        val loopEndBlock = Block("LoopEnd$loopEndCount", mutableListOf())
+                        val loopEndBlock = Block("LoopEnd$loopCount", mutableListOf())
+                        loopEndLabel = loopEndBlock.label
                         loopBlock.instructions.add(JumpInstruction(AsmJumpOp.JNE, loopEndBlock.label!!))
                         val newBlock = convert(ir.body, loopBlock)
                         newBlock.instructions.add(JumpInstruction(AsmJumpOp.JMP, loopBlock.label!!))
