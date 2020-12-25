@@ -49,7 +49,7 @@ data class Label(val label: String) : Location() {
     }
 }
 
-data class MemLoc(val reg: Register, val offset: NumberOffset) : Location() {
+data class MemLoc(val reg: Register, val offset: Offset) : Location() {
     override fun toString(): String {
         return "$offset($reg)"
     }

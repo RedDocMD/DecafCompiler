@@ -3,7 +3,7 @@ package deep.decaf.low.amd64
 import deep.decaf.low.*
 import java.lang.IllegalStateException
 
-fun methodCFGToLow(name: String, cfg: CFG, blockCountStart: Int = 0) {
+fun methodCFGToLow(name: String, cfg: CFG, blockCountStart: Int = 0, info: AsmProgramInfo) {
     val blocks = mutableListOf<Block>()
     var stackSize = 0
     var blockCounts = blockCountStart
@@ -16,7 +16,7 @@ fun methodCFGToLow(name: String, cfg: CFG, blockCountStart: Int = 0) {
             when (node) {
                 is RegularNode -> {
                     for (statement in node.statements) {
-                        block.instructions.addAll(irStatementToLow(statement))
+                        block.instructions.addAll(irStatementToLow(statement, info))
                     }
                     if (node.next != null) {
                         convert(node.next!!, block)
@@ -33,7 +33,7 @@ fun methodCFGToLow(name: String, cfg: CFG, blockCountStart: Int = 0) {
                     }
                 }
                 is ConditionalNode -> {
-                    val instructions = irExprToLow(node.condition)
+                    val instructions = irExprToLow(node.condition, info)
                     val res = (instructions.last() as MoveInstruction).dest
                     blockCounts++
                     val newLabel = "BLOCK$blockCounts"

@@ -18,7 +18,8 @@ fun main() {
             throw RuntimeException("Invalid program")
         for (method in irTree.methodDeclarations) {
             if (method.name == "main") {
-                val blocks = irMethodToLow(method)
+                val info = AsmProgramInfo()
+                val blocks = irMethodToLow(method, info)
                 println(file.absolutePath)
                 for (block in blocks) {
                     print(block)

@@ -42,8 +42,9 @@ fun main() {
         )
     )
 
+    val info = AsmProgramInfo()
     expressions.forEach { expr ->
-        val statements = irExprToLow(expr)
+        val statements = irExprToLow(expr, info)
         val asm = statements.joinToString("\n") { it.toString() }
         println(asm)
         println()
