@@ -19,11 +19,9 @@ fun main() {
         for (method in irTree.methodDeclarations) {
             if (method.name == "main") {
                 val info = AsmProgramInfo()
-                val blocks = irMethodToLow(method, info)
+                val methodAsm = irMethodToLow(method, info)
                 println(file.absolutePath)
-                for (block in blocks) {
-                    print(block)
-                }
+                println(methodAsm)
                 println()
             }
         }

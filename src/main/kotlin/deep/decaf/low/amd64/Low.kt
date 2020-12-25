@@ -211,7 +211,7 @@ data class PushInstruction(val src: Location) : Instruction() {
 }
 
 data class PopInstruction(val src: Location) : Instruction() {
-    override fun toString() = "pop ${src ?: ""}"
+    override fun toString() = "pop $src"
 }
 
 object LeaveInstruction : Instruction() {
@@ -239,12 +239,22 @@ data class Block(val label: String?, val instructions: MutableList<Instruction>)
 }
 
 data class Method(
-    var stackSize: Int,
-    var formalParams: Map<String, Location>,
-    var localVars: Map<String, Location>,
-    var blocks: List<Block>,
-    var program: Program
-)
+    val formalParams: Map<String, Location>,
+    val blocks: List<Block>,
+) {
+    init {
+        blocks[0].instructions.add(0, EnterInstruction(0))
+        val lastBlock = blocks.last()
+        lastBlock.instructions.add(LeaveInstruction)
+        lastBlock.instructions.add(ReturnInstruction)
+    }
+
+    override fun toString(): String {
+        val stringBuilder = StringBuilder()
+        for (block in blocks) stringBuilder.append(block.toString())
+        return stringBuilder.toString()
+    }
+}
 
 data class Program(
     var globalVars: List<String>,

@@ -264,7 +264,7 @@ fun irStatementToLow(statement: IRStatement, info: AsmProgramInfo): List<Instruc
     return instructions
 }
 
-fun irMethodToLow(method: IRMethodDeclaration, info: AsmProgramInfo): List<Block> {
+fun irMethodToLow(method: IRMethodDeclaration, info: AsmProgramInfo): Method {
     val blocks = mutableListOf<Block>()
     blocks.add(Block(method.name, mutableListOf()))
 
@@ -380,12 +380,18 @@ fun irMethodToLow(method: IRMethodDeclaration, info: AsmProgramInfo): List<Block
         }
     }
 
-    blocks[0].instructions.add(EnterInstruction(0))
+    val argMap = mutableMapOf<String, Location>()
+    for ((i, arg) in method.argList.withIndex()) {
+        argMap[arg.name] = MemLoc(
+            Register.basePointer(),
+            NumberOffset((i + 2) * 8)
+        )
+    }
+    info.pushMethodArgs(argMap)
     convert(method.block, blocks[0])
-    blocks.last().instructions.add(LeaveInstruction)
-    blocks.last().instructions.add(ReturnInstruction)
+    info.popMethodArgs()
 
-    return blocks
+    return Method(argMap, blocks)
 }
 
 class AsmProgramInfo {
@@ -398,6 +404,7 @@ class AsmProgramInfo {
     private val globalVariables = mutableMapOf<String, Type>() // name -> type
     private val globalArrays = mutableMapOf<String, Int>() // name -> size
     private val variableStacks = mutableListOf<MutableMap<String, MemLoc>>()
+    private val methodFormalParamsStack = mutableListOf<Map<String, Location>>()
 
     fun addGlobalVariable(name: String, type: Type) {
         globalVariables[name] = type
@@ -434,6 +441,9 @@ class AsmProgramInfo {
                 return locMap.getValue(name)
             }
         }
+        if (name in methodFormalParamsStack.last()) {
+            return methodFormalParamsStack.last()[name]!! as MemLoc
+        }
         if (name in globalVariables)  {
             return MemLoc(
                 Register.instructionPointer(),
@@ -449,5 +459,13 @@ class AsmProgramInfo {
 
     fun popStack() {
         stackSize--
+    }
+
+    fun pushMethodArgs(args: Map<String, Location>) {
+        methodFormalParamsStack.add(args)
+    }
+
+    fun popMethodArgs() {
+        methodFormalParamsStack.removeAt(methodFormalParamsStack.size - 1)
     }
 }
