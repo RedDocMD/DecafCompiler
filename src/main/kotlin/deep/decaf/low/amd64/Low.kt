@@ -241,6 +241,7 @@ data class Block(val label: String?, val instructions: MutableList<Instruction>)
 data class Method(
     val formalParams: Map<String, Location>,
     val blocks: List<Block>,
+    val name: String
 ) {
     init {
         blocks[0].instructions.add(0, EnterInstruction(0))
@@ -257,7 +258,37 @@ data class Method(
 }
 
 data class Program(
-    var globalVars: List<String>,
-    var globalArrays: List<String>,
-    var methods: List<Method>
-)
+    val globalVars: List<String>,
+    val globalArrays: Map<String, Int>,
+    val globalText: Map<String, String>,
+    val methods: List<Method>
+) {
+    override fun toString(): String {
+        val stringBuilder = StringBuilder()
+        stringBuilder.append(".section .rodata").append("\n")
+        for (text in globalText.keys)  {
+            stringBuilder.append("${globalText[text]}:").append("\n")
+            stringBuilder.append("\t").append(".string \"$text\"").append("\n")
+        }
+
+        stringBuilder.append(".section .text").append("\n")
+        stringBuilder.append("\t").append(".global main").append("\n")
+        for (method in methods)  {
+            if (method.name == "main") {
+                stringBuilder.append(method.toString())
+            }
+        }
+        for (method in methods)  {
+            if (method.name != "main") {
+                stringBuilder.append(method.toString())
+            }
+        }
+        globalVars.forEach {
+            stringBuilder.append(".comm $it, 8, 8").append("\n")
+        }
+        globalArrays.keys.forEach {
+            stringBuilder.append(".comm $it, 8*${globalArrays[it]}, 8")
+        }
+        return stringBuilder.toString()
+    }
+}

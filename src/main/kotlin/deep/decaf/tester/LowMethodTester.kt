@@ -16,14 +16,7 @@ fun main() {
         val errors = checkSemantics(irTree)
         if (errors.isNotEmpty())
             throw RuntimeException("Invalid program")
-        for (method in irTree.methodDeclarations) {
-            if (method.name == "main") {
-                val info = AsmProgramInfo()
-                val methodAsm = irMethodToLow(method, info)
-                println(file.absolutePath)
-                println(methodAsm)
-                println()
-            }
-        }
+        val program = irProgramToLow(irTree)
+        println(program)
     }
 }

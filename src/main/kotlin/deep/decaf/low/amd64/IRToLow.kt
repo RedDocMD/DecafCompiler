@@ -1,6 +1,7 @@
 package deep.decaf.low.amd64
 
 import deep.decaf.ir.*
+import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 
 class AsmProgramInfo {
@@ -14,6 +15,7 @@ class AsmProgramInfo {
     private val globalArrays = mutableMapOf<String, Int>() // name -> size
     private val variableStacks = mutableListOf<MutableMap<String, MemLoc>>()
     private val methodFormalParamsStack = mutableListOf<Map<String, Location>>()
+    val globalText = mutableMapOf<String, String>()
 
     fun addGlobalVariable(name: String, type: Type) {
         globalVariables[name] = type
@@ -53,7 +55,7 @@ class AsmProgramInfo {
         if (name in methodFormalParamsStack.last()) {
             return methodFormalParamsStack.last()[name]!! as MemLoc
         }
-        if (name in globalVariables)  {
+        if (name in globalVariables) {
             return MemLoc(
                 Register.instructionPointer(),
                 StringOffset(name)
@@ -76,6 +78,12 @@ class AsmProgramInfo {
 
     fun popMethodArgs() {
         methodFormalParamsStack.removeAt(methodFormalParamsStack.size - 1)
+    }
+
+    fun addGlobalString(value: String): String {
+        val label = "LOC${globalText.size}"
+        globalText[label] = value
+        return label
     }
 }
 
@@ -114,7 +122,46 @@ fun irExprToLow(expr: IRExpr, info: AsmProgramInfo): List<Instruction> {
                 instructions.add(MoveInstruction(Register.returnRegister(), tmp))
                 tmp
             }
-            is IRCallOutExpr -> TODO()
+            is IRCallOutExpr -> {
+                for ((i, arg) in expr.argList.withIndex()) {
+                    val register = when (i) {
+                        0 -> Register("rdi")
+                        1 -> Register("rsi")
+                        2 -> Register("rdx")
+                        3 -> Register("rcx")
+                        4 -> Register("r8")
+                        5 -> Register("r9")
+                        else -> throw IllegalArgumentException("too many arguments to callout expression")
+                    }
+                    when (arg) {
+                        is StringCallOutArg -> {
+                            val loc = info.addGlobalString(arg.arg)
+                            instructions.add(
+                                MoveInstruction(
+                                    MemLoc(Register.basePointer(), StringOffset(loc)),
+                                    register
+                                )
+                            )
+                        }
+                        is ExprCallOutArg -> {
+                            val loc = traverse(arg.arg)
+                            instructions.add(MoveInstruction(loc, register))
+                        }
+                    }
+                }
+                val mustPush = info.stackSize % 2 == 1
+                if (mustPush) {
+                    instructions.add(PushInstruction(Register.r10()))
+                }
+                instructions.add(CallInstruction(expr.name))
+                if (mustPush) {
+                    instructions.add(PopInstruction(Register.r10()))
+                }
+                val tmp = info.addVariable(getUUID())
+                instructions.add(PushInstruction(ImmediateVal(0)))
+                instructions.add(MoveInstruction(Register.returnRegister(), tmp))
+                tmp
+            }
             is IRBinOpExpr -> {
                 val leftLocation = traverse(expr.left)
                 val rightLocation = traverse(expr.right)
@@ -467,5 +514,21 @@ fun irMethodToLow(method: IRMethodDeclaration, info: AsmProgramInfo): Method {
     convert(method.block, blocks[0])
     info.popMethodArgs()
 
-    return Method(argMap, blocks)
+    return Method(argMap, blocks, method.name)
+}
+
+fun irProgramToLow(program: IRProgram): Program {
+    val info = AsmProgramInfo()
+    program.fieldDeclarations.forEach {
+        when (it) {
+            is IRRegularFieldDeclaration -> info.addGlobalVariable(it.name, it.type)
+            is IRArrayFieldDeclaration -> info.addGlobalArray(it.name, it.size)
+        }
+    }
+    val methods = program.methodDeclarations.map { irMethodToLow(it, info) }
+    val globalVariables = program.fieldDeclarations.filterIsInstance<IRRegularFieldDeclaration>().map { it.name }
+    val globalArrays = mutableMapOf<String, Int>()
+    program.fieldDeclarations.filterIsInstance<IRArrayFieldDeclaration>().forEach { globalArrays[it.name] = it.size }
+
+    return Program(globalVariables, globalArrays, info.globalText, methods)
 }
