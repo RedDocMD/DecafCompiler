@@ -3,6 +3,82 @@ package deep.decaf.low.amd64
 import deep.decaf.ir.*
 import java.lang.IllegalStateException
 
+class AsmProgramInfo {
+    var loopCount = 0
+    var ifCount = 0
+
+    var stackSize = 0
+        private set
+
+    private val globalVariables = mutableMapOf<String, Type>() // name -> type
+    private val globalArrays = mutableMapOf<String, Int>() // name -> size
+    private val variableStacks = mutableListOf<MutableMap<String, MemLoc>>()
+    private val methodFormalParamsStack = mutableListOf<Map<String, Location>>()
+
+    fun addGlobalVariable(name: String, type: Type) {
+        globalVariables[name] = type
+    }
+
+    fun addGlobalArray(name: String, size: Int) {
+        globalArrays[name] = size
+    }
+
+    fun enterScope() {
+        variableStacks.add(mutableMapOf())
+    }
+
+    fun leaveScope(): Int {
+        val size = variableStacks.last().size
+        variableStacks.removeAt(variableStacks.size - 1)
+        stackSize -= size
+        return size
+    }
+
+    fun addVariable(name: String): MemLoc {
+        stackSize++
+        val loc = MemLoc(
+            Register.basePointer(),
+            NumberOffset(-8 * stackSize)
+        )
+        variableStacks.last()[name] = loc
+        return loc
+    }
+
+    fun getVariableLocation(name: String): MemLoc {
+        for (locMap in variableStacks.reversed()) {
+            if (name in locMap) {
+                return locMap.getValue(name)
+            }
+        }
+        if (name in methodFormalParamsStack.last()) {
+            return methodFormalParamsStack.last()[name]!! as MemLoc
+        }
+        if (name in globalVariables)  {
+            return MemLoc(
+                Register.instructionPointer(),
+                StringOffset(name)
+            )
+        }
+        throw IllegalStateException("variable $name not found")
+    }
+
+    fun pushStack() {
+        stackSize++
+    }
+
+    fun popStack() {
+        stackSize--
+    }
+
+    fun pushMethodArgs(args: Map<String, Location>) {
+        methodFormalParamsStack.add(args)
+    }
+
+    fun popMethodArgs() {
+        methodFormalParamsStack.removeAt(methodFormalParamsStack.size - 1)
+    }
+}
+
 fun irExprToLow(expr: IRExpr, info: AsmProgramInfo): List<Instruction> {
     val instructions = mutableListOf<Instruction>()
 
@@ -392,80 +468,4 @@ fun irMethodToLow(method: IRMethodDeclaration, info: AsmProgramInfo): Method {
     info.popMethodArgs()
 
     return Method(argMap, blocks)
-}
-
-class AsmProgramInfo {
-    var loopCount = 0
-    var ifCount = 0
-
-    var stackSize = 0
-        private set
-
-    private val globalVariables = mutableMapOf<String, Type>() // name -> type
-    private val globalArrays = mutableMapOf<String, Int>() // name -> size
-    private val variableStacks = mutableListOf<MutableMap<String, MemLoc>>()
-    private val methodFormalParamsStack = mutableListOf<Map<String, Location>>()
-
-    fun addGlobalVariable(name: String, type: Type) {
-        globalVariables[name] = type
-    }
-
-    fun addGlobalArray(name: String, size: Int) {
-        globalArrays[name] = size
-    }
-
-    fun enterScope() {
-        variableStacks.add(mutableMapOf())
-    }
-
-    fun leaveScope(): Int {
-        val size = variableStacks.last().size
-        variableStacks.removeAt(variableStacks.size - 1)
-        stackSize -= size
-        return size
-    }
-
-    fun addVariable(name: String): MemLoc {
-        stackSize++
-        val loc = MemLoc(
-            Register.basePointer(),
-            NumberOffset(-8 * stackSize)
-        )
-        variableStacks.last()[name] = loc
-        return loc
-    }
-
-    fun getVariableLocation(name: String): MemLoc {
-        for (locMap in variableStacks.reversed()) {
-            if (name in locMap) {
-                return locMap.getValue(name)
-            }
-        }
-        if (name in methodFormalParamsStack.last()) {
-            return methodFormalParamsStack.last()[name]!! as MemLoc
-        }
-        if (name in globalVariables)  {
-            return MemLoc(
-                Register.instructionPointer(),
-                StringOffset(name)
-            )
-        }
-        throw IllegalStateException("variable $name not found")
-    }
-
-    fun pushStack() {
-        stackSize++
-    }
-
-    fun popStack() {
-        stackSize--
-    }
-
-    fun pushMethodArgs(args: Map<String, Location>) {
-        methodFormalParamsStack.add(args)
-    }
-
-    fun popMethodArgs() {
-        methodFormalParamsStack.removeAt(methodFormalParamsStack.size - 1)
-    }
 }
