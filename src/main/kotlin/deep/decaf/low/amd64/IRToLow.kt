@@ -123,38 +123,53 @@ fun irExprToLow(expr: IRExpr, info: AsmProgramInfo): List<Instruction> {
                 tmp
             }
             is IRCallOutExpr -> {
+                var pushCount = 0
                 for ((i, arg) in expr.argList.withIndex()) {
-                    val register = when (i) {
-                        0 -> Register("rdi")
-                        1 -> Register("rsi")
-                        2 -> Register("rdx")
-                        3 -> Register("rcx")
-                        4 -> Register("r8")
-                        5 -> Register("r9")
-                        else -> throw IllegalArgumentException("too many arguments to callout expression")
-                    }
-                    when (arg) {
-                        is StringCallOutArg -> {
-                            val loc = info.addGlobalString(arg.arg)
-                            instructions.add(
-                                MoveInstruction(
-                                    MemLoc(Register.basePointer(), StringOffset(loc)),
-                                    register
-                                )
-                            )
+                    if (i < 6) {
+                        val register = when (i) {
+                            0 -> Register("rdi")
+                            1 -> Register("rsi")
+                            2 -> Register("rdx")
+                            3 -> Register("rcx")
+                            4 -> Register("r8")
+                            5 -> Register("r9")
+                            else -> throw IllegalArgumentException("code screwed up")
                         }
-                        is ExprCallOutArg -> {
-                            val loc = traverse(arg.arg)
-                            instructions.add(MoveInstruction(loc, register))
+                        when (arg) {
+                            is StringCallOutArg -> {
+                                val loc = info.addGlobalString(arg.arg)
+                                instructions.add(
+                                    LeaqInstruction(
+                                        MemLoc(Register.basePointer(), StringOffset(loc)),
+                                        register
+                                    )
+                                )
+                            }
+                            is ExprCallOutArg -> {
+                                val loc = traverse(arg.arg)
+                                instructions.add(MoveInstruction(loc, register))
+                            }
+                        }
+                    } else {
+                        pushCount++
+                        when (arg) {
+                            is StringCallOutArg -> {
+                                val loc = info.addGlobalString(arg.arg)
+                                instructions.add(PushInstruction(MemLoc(Register.basePointer(), StringOffset(loc))))
+                            }
+                            is ExprCallOutArg -> {
+                                val loc = traverse(arg.arg)
+                                instructions.add(PushInstruction(loc))
+                            }
                         }
                     }
                 }
-                val mustPush = info.stackSize % 2 == 1
-                if (mustPush) {
+                if (info.stackSize % 2 == 1) {
                     instructions.add(PushInstruction(Register.r10()))
+                    pushCount++
                 }
                 instructions.add(CallInstruction(expr.name))
-                if (mustPush) {
+                for (i in 1..pushCount) {
                     instructions.add(PopInstruction(Register.r10()))
                 }
                 val tmp = info.addVariable(getUUID())

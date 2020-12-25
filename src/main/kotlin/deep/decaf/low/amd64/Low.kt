@@ -182,6 +182,12 @@ data class MoveInstruction(val src: Location, val dest: Location) : Instruction(
     }
 }
 
+data class LeaqInstruction(val src: Location, val dest: Location) : Instruction() {
+    override fun toString(): String {
+        return "leaq $src, $dest"
+    }
+}
+
 data class CMoveInstruction(val type: AsmCMoveOp, val src: Register, val dest: Register) : Instruction() {
     override fun toString(): String {
         return "$type $src $dest"
@@ -266,19 +272,19 @@ data class Program(
     override fun toString(): String {
         val stringBuilder = StringBuilder()
         stringBuilder.append(".section .rodata").append("\n")
-        for (text in globalText.keys)  {
-            stringBuilder.append("${globalText[text]}:").append("\n")
-            stringBuilder.append("\t").append(".string \"$text\"").append("\n")
+        for (text in globalText.keys) {
+            stringBuilder.append("$text:").append("\n")
+            stringBuilder.append("\t").append(".string ${globalText[text]}").append("\n")
         }
 
         stringBuilder.append(".section .text").append("\n")
         stringBuilder.append("\t").append(".global main").append("\n")
-        for (method in methods)  {
+        for (method in methods) {
             if (method.name == "main") {
                 stringBuilder.append(method.toString())
             }
         }
-        for (method in methods)  {
+        for (method in methods) {
             if (method.name != "main") {
                 stringBuilder.append(method.toString())
             }
