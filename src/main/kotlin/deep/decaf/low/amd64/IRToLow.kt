@@ -140,7 +140,7 @@ fun irExprToLow(expr: IRExpr, info: AsmProgramInfo): List<Instruction> {
                                 val loc = info.addGlobalString(arg.arg)
                                 instructions.add(
                                     LeaqInstruction(
-                                        MemLoc(Register.basePointer(), StringOffset(loc)),
+                                        MemLoc(Register.instructionPointer(), StringOffset(loc)),
                                         register
                                     )
                                 )
@@ -155,7 +155,7 @@ fun irExprToLow(expr: IRExpr, info: AsmProgramInfo): List<Instruction> {
                         when (arg) {
                             is StringCallOutArg -> {
                                 val loc = info.addGlobalString(arg.arg)
-                                instructions.add(PushInstruction(MemLoc(Register.basePointer(), StringOffset(loc))))
+                                instructions.add(PushInstruction(MemLoc(Register.instructionPointer(), StringOffset(loc))))
                             }
                             is ExprCallOutArg -> {
                                 val loc = traverse(arg.arg)

@@ -1,10 +1,12 @@
 package deep.decaf.main
 
 import deep.decaf.ir.*
+import deep.decaf.low.amd64.*
 import deep.decaf.parser.*
 import org.antlr.v4.runtime.*
+import org.apache.commons.io.*
 import picocli.*
-import picocli.CommandLine.*;
+import picocli.CommandLine.*
 import java.io.*
 import java.util.concurrent.*
 import kotlin.system.*
@@ -30,10 +32,16 @@ class Compiler : Callable<Int> {
 
         @Option(names = ["-c", "--semantic"], description = ["Scan, parse and then perform semantic checks"])
         var check = false
+
+        @Option(names = ["-a", "--all"], description = ["Perform all steps and create assembly code"])
+        var all = false
     }
 
     @Option(names = ["-g", "--debug"], description = ["Enable debug mode"])
     var debug = false
+
+    @Option(names = ["-o", "--output"], description = ["Name of output file"])
+    lateinit var output: File
 
     override fun call(): Int {
         if (!file.exists()) {
@@ -64,7 +72,41 @@ class Compiler : Callable<Int> {
                     } else newExitCode
                 } else exitCode
             }
-            else -> 0
+            stage.all -> {
+                val lexer = makeLexer(file)
+                val exitCode = scanFile(lexer, debug)
+                if (exitCode == 0) {
+                    val parser = makeParser(lexer)
+                    val (newExitCode, tree) = parseFile(parser)
+                    if (newExitCode == 0) {
+                        val ir = makeIR(tree)
+                        val semanticCheckCode = semanticCheck(ir, debug)
+                        if (semanticCheckCode == 0) {
+                            try {
+                                val bufferedWriter: BufferedWriter = if (::output.isInitialized) {
+                                    output.bufferedWriter()
+                                } else {
+                                    val fileNameNoExtension = FilenameUtils.getBaseName(file.name)
+                                    val basePath = FilenameUtils.getFullPath(file.absolutePath)
+                                    val outFilePath = "$basePath${File.separator}$fileNameNoExtension.s"
+                                    val outFile = File(outFilePath)
+                                    outFile.bufferedWriter()
+                                }
+                                val program = irProgramToLow(ir)
+                                bufferedWriter.append(program.toString())
+                                bufferedWriter.flush()
+                                bufferedWriter.close()
+                                0
+                            } catch (e: IOException) {
+                                val msg = Help.Ansi.AUTO.string("@|bold,red $e|@")
+                                println(msg)
+                                1
+                            }
+                        } else semanticCheckCode
+                    } else newExitCode
+                } else exitCode
+            }
+            else -> 1
         }
     }
 }
